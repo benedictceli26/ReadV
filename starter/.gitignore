@@ -1,0 +1,12 @@
+# Android Studio / Gradle
+.gradle/
+local.properties
+*.iml
+.idea/
+build/
+app/build/
+# Firebase — google-services.json is per-developer; do NOT commit a real one
+# (the app runs in sample mode without it, see README.md).
+app/google-services.json
+# OS
+.DS_Store

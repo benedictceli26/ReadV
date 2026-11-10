@@ -32,8 +32,10 @@ import androidx.compose.ui.unit.sp
 import com.mnhs.readventures.data.Question
 import com.mnhs.readventures.data.ReadingMaterial
 import com.mnhs.readventures.ui.components.SubHeader
+import com.mnhs.readventures.ui.components.PrimaryButton
 import com.mnhs.readventures.ui.theme.BlueLight
 import com.mnhs.readventures.ui.theme.BluePrimary
+import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.Green
 import com.mnhs.readventures.ui.theme.GreenLight
 import com.mnhs.readventures.ui.theme.InkDark
@@ -83,30 +85,29 @@ fun QuizScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
         ) {
-            Text(
-                "Question ${index + 1} of ${questions.size}",
-                fontSize = 13.sp,
-                color = Muted
-            )
-            Spacer(modifier = Modifier.height(8.dp))
+            Text("COMPREHENSION CHECK", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BluePrimary, letterSpacing = .7.sp)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text("Question ${index + 1} of ${questions.size}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = InkDark)
+            Spacer(modifier = Modifier.height(10.dp))
             LinearProgressIndicator(
                 progress = { (index + 1).toFloat() / questions.size },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(6.dp),
                 color = BluePrimary,
                 trackColor = BlueLight
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text("Score so far: $score / ${questions.size}", fontSize = 13.sp, color = Muted)
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(18.dp))
 
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text(question.question, fontSize = 17.sp, fontWeight = FontWeight.SemiBold, color = InkDark)
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(question.question, fontSize = 19.sp, lineHeight = 26.sp, fontWeight = FontWeight.SemiBold, color = InkDark)
+                    Spacer(modifier = Modifier.height(18.dp))
                     for ((choiceIndex, choice) in question.choices.withIndex()) {
                         val isSelected = selected == choiceIndex
                         val bg = when {
@@ -124,17 +125,18 @@ fun QuizScreen(
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 4.dp)
-                                .border(1.5.dp, border, RoundedCornerShape(12.dp))
+                                .padding(vertical = 5.dp)
+                                .border(1.5.dp, border, RoundedCornerShape(14.dp))
                                 .clickable(enabled = !checked) { selected = choiceIndex },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(14.dp),
                             colors = CardDefaults.cardColors(containerColor = bg)
                         ) {
                             Text(
                                 "${'A' + choiceIndex}.  $choice",
                                 fontSize = 15.sp,
+                                lineHeight = 21.sp,
                                 color = InkDark,
-                                modifier = Modifier.padding(14.dp)
+                                modifier = Modifier.fillMaxWidth().padding(horizontal = 15.dp, vertical = 16.dp)
                             )
                         }
                     }
@@ -164,7 +166,8 @@ fun QuizScreen(
 
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
             if (!checked) {
-                Button(
+                PrimaryButton(
+                    text = "Check answer",
                     onClick = {
                         if (selected >= 0) {
                             checked = true
@@ -172,16 +175,11 @@ fun QuizScreen(
                         }
                     },
                     enabled = selected >= 0,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(26.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-                ) {
-                    Text("Check Answer", fontSize = 16.sp)
-                }
+                    modifier = Modifier.fillMaxWidth()
+                )
             } else {
-                Button(
+                PrimaryButton(
+                    text = if (index + 1 < questions.size) "Next question" else "See my result",
                     onClick = {
                         if (index + 1 < questions.size) {
                             index++
@@ -191,17 +189,8 @@ fun QuizScreen(
                             onFinished(material.id, score, questions.size)
                         }
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(52.dp),
-                    shape = RoundedCornerShape(26.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-                ) {
-                    Text(
-                        if (index + 1 < questions.size) "Next Question" else "See My Result",
-                        fontSize = 16.sp
-                    )
-                }
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

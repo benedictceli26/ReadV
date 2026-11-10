@@ -62,10 +62,14 @@ import com.mnhs.readventures.data.AppState
 import com.mnhs.readventures.data.ReadingMaterial
 import com.mnhs.readventures.data.SchoolClass
 import com.mnhs.readventures.ui.components.AppTopBar
+import com.mnhs.readventures.ui.components.PrimaryButton
+import com.mnhs.readventures.ui.components.SecondaryButton
+import com.mnhs.readventures.ui.components.SectionHeader
 import com.mnhs.readventures.ui.components.SubHeader
 import com.mnhs.readventures.ui.theme.BlueDark
 import com.mnhs.readventures.ui.theme.BlueLight
 import com.mnhs.readventures.ui.theme.BluePrimary
+import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.Green
 import com.mnhs.readventures.ui.theme.InkDark
 import com.mnhs.readventures.ui.theme.Muted
@@ -114,11 +118,9 @@ fun TeacherDashboardScreen(
                 subtitle = "Teacher Dashboard",
                 onProfileClick = onProfileClick
             )
-            Text(
-                "Teacher Dashboard",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = InkDark,
+            SectionHeader(
+                title = "Teacher workspace",
+                detail = "Classes, assignments, and learning content in one place.",
                 modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
             )
         }
@@ -133,7 +135,7 @@ fun TeacherDashboardScreen(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = BluePrimary)
+                    colors = CardDefaults.cardColors(containerColor = InkDark)
                 ) {
                     Row(
                         modifier = Modifier.padding(18.dp),
@@ -141,23 +143,26 @@ fun TeacherDashboardScreen(
                     ) {
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                teacher.name.ifBlank { "Ms. Santos" },
+                                if (teacher.name.isBlank()) "Teacher workspace" else "Welcome, ${teacher.name}",
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
-                            Text(
-                                "English Department  •  Teacher Account",
-                                fontSize = 13.sp,
-                                color = Color.White.copy(alpha = 0.9f)
-                            )
-                            Text(
-                                teacher.email.ifBlank { "teacher.santos@mnhs.edu.ph" },
-                                fontSize = 12.sp,
-                                color = Color.White.copy(alpha = 0.8f)
-                            )
+                            Text("Classes, assignments, and reading resources", fontSize = 13.sp, color = Color.White.copy(alpha = 0.82f))
+                            if (teacher.email.isNotBlank()) {
+                                Text(teacher.email, fontSize = 12.sp, color = Color.White.copy(alpha = 0.72f))
+                            }
                         }
+
                     }
+                }
+            }
+
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    TeacherStatCard("${AppState.classes.size}", "Classes", Modifier.weight(1f))
+                    TeacherStatCard("${AppState.classMembers.size}", "Enrollments", Modifier.weight(1f))
+                    TeacherStatCard("${AppState.classAssignments.size}", "Assignments", Modifier.weight(1f))
                 }
             }
 
@@ -167,42 +172,31 @@ fun TeacherDashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    Button(
-                        onClick = onCreateClass,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-                    ) {
-                        Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Create Class", fontSize = 13.sp)
-                    }
-
-                    Button(
-                        onClick = onCreateMaterial,
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = BlueDark)
-                    ) {
-                        Icon(Icons.Filled.PostAdd, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Upload Story", fontSize = 13.sp)
-                    }
+                    PrimaryButton("Create class", onCreateClass, Modifier.weight(1f))
+                    SecondaryButton("Create reading", onCreateMaterial, Modifier.weight(1f))
                 }
             }
 
             // Section: My Classes
             item {
-                Text(
-                    "My Classes (${AppState.classes.size})",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = InkDark
-                )
+                SectionHeader("My classes", "${AppState.classes.size} active classrooms")
+            }
+
+            if (AppState.classes.isEmpty()) {
+                item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
+                    ) {
+                        Column(Modifier.padding(18.dp)) {
+                            Text("Your classrooms will appear here", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = InkDark)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("Create a class to share a code and assign readings to students.", fontSize = 13.sp, color = Muted)
+                        }
+                    }
+                }
             }
 
             items(AppState.classes, key = { it.classId }) { schoolClass ->
@@ -213,7 +207,8 @@ fun TeacherDashboardScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -296,7 +291,7 @@ fun TeacherDashboardScreen(
                                         modifier = Modifier.weight(1f)
                                     )
                                     Text(
-                                        "Read: ${AppState.readCount()}  |  Avg: ${AppState.averageScorePercent()}%",
+                                        "Enrolled",
                                         fontSize = 11.sp,
                                         color = Green,
                                         fontWeight = FontWeight.Medium
@@ -341,12 +336,7 @@ fun TeacherDashboardScreen(
 
             // Section: Teacher-Created Content
             item {
-                Text(
-                    "Teacher-Made Materials & Quizzes",
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = InkDark
-                )
+                SectionHeader("Created content", "Readings and quizzes you have published")
             }
 
             val teacherMaterials = AppState.materials.filter { it.isTeacherMade }
@@ -355,7 +345,8 @@ fun TeacherDashboardScreen(
                     Card(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White)
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
                     ) {
                         Text(
                             "No teacher-made materials created yet. Tap \"Upload Story\" above to create one.",
@@ -371,7 +362,8 @@ fun TeacherDashboardScreen(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         colors = CardDefaults.cardColors(containerColor = Color.White),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
                     ) {
                         Row(
                             modifier = Modifier.padding(14.dp),
@@ -502,5 +494,24 @@ fun TeacherDashboardScreen(
                 }
             }
         )
+    }
+}
+
+@Composable
+private fun TeacherStatCard(value: String, label: String, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier,
+        shape = RoundedCornerShape(14.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+    ) {
+        Column(
+            Modifier.fillMaxWidth().padding(vertical = 12.dp, horizontal = 6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+            Text(label, fontSize = 10.sp, color = Muted, maxLines = 1)
+        }
     }
 }

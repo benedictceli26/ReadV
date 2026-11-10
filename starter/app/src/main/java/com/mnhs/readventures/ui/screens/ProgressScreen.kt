@@ -2,6 +2,7 @@ package com.mnhs.readventures.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,12 +10,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
+import androidx.compose.material.icons.filled.Quiz
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -27,8 +34,11 @@ import androidx.compose.ui.unit.sp
 import com.mnhs.readventures.data.AppState
 import com.mnhs.readventures.data.SampleData
 import com.mnhs.readventures.ui.components.AppTopBar
+import com.mnhs.readventures.ui.components.EmptyState
+import com.mnhs.readventures.ui.components.ProgressCard
 import com.mnhs.readventures.ui.theme.BlueLight
 import com.mnhs.readventures.ui.theme.BluePrimary
+import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.InkDark
 import com.mnhs.readventures.ui.theme.Muted
 import com.mnhs.readventures.ui.theme.ScreenBg
@@ -56,9 +66,9 @@ fun ProgressScreen(onOpenProfile: () -> Unit) {
                 .padding(horizontal = 20.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            StatCard("$readCount", "Read", Modifier.weight(1f))
-            StatCard("$quizzes", "Quizzes", Modifier.weight(1f))
-            StatCard("$average%", "Avg Score", Modifier.weight(1f))
+            StatCard("$readCount", "Stories read", Icons.AutoMirrored.Filled.MenuBook, Modifier.weight(1f))
+            StatCard("$quizzes", "Quizzes", Icons.Filled.Quiz, Modifier.weight(1f))
+            StatCard("$average", "Avg score", null, Modifier.weight(1f))
         }
 
         // FEATURE 2: Current Level & Unlock Status
@@ -68,6 +78,10 @@ fun ProgressScreen(onOpenProfile: () -> Unit) {
             "level-2" -> "level-3"
             else -> null
         }
+        val currentLevelMaterials = AppState.materials.filter { it.levelId == currLevel.id }
+        val completedInLevel = currentLevelMaterials.count { it.id in AppState.finishedReading }
+        val levelProgress = if (currentLevelMaterials.isEmpty()) 0f
+            else completedInLevel.toFloat() / currentLevelMaterials.size
 
         Card(
             modifier = Modifier
@@ -75,7 +89,8 @@ fun ProgressScreen(onOpenProfile: () -> Unit) {
                 .padding(horizontal = 20.dp, vertical = 4.dp),
             shape = RoundedCornerShape(14.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -114,6 +129,30 @@ fun ProgressScreen(onOpenProfile: () -> Unit) {
                         color = com.mnhs.readventures.ui.theme.Green
                     )
                 }
+                if (currentLevelMaterials.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            "$completedInLevel of ${currentLevelMaterials.size} stories completed",
+                            fontSize = 12.sp,
+                            color = Muted,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            "${(levelProgress * 100).toInt()}%",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = BluePrimary
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = { levelProgress },
+                        modifier = Modifier.fillMaxWidth().height(6.dp),
+                        color = BluePrimary,
+                        trackColor = BlueLight
+                    )
+                }
             }
         }
 
@@ -126,10 +165,9 @@ fun ProgressScreen(onOpenProfile: () -> Unit) {
         )
 
         if (AppState.scores.isEmpty()) {
-            Text(
-                "No quizzes taken yet. Finish a story and take its quiz — your score will appear here.",
-                fontSize = 14.sp,
-                color = Muted,
+            EmptyState(
+                title = "Your quiz history will appear here",
+                detail = "Finish a story and take its quiz to start building your record.",
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
         }
@@ -145,42 +183,11 @@ fun ProgressScreen(onOpenProfile: () -> Unit) {
             items(SampleData.materials, key = { it.id }) { material ->
                 val best = AppState.bestScores[material.id]
                 val progress = AppState.readingProgress[material.id] ?: 0
-                Card(
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                material.title,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = InkDark,
-                                modifier = Modifier.weight(1f)
-                            )
-                            Text(
-                                if (best != null) "$best/5" else "—/5",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = BluePrimary
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        LinearProgressIndicator(
-                            progress = { progress / 100f },
-                            modifier = Modifier.fillMaxWidth(),
-                            color = BluePrimary,
-                            trackColor = BlueLight
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            "Reading: $progress%  •  ${if (best != null) "Best quiz: $best/5" else "Quiz not taken yet"}",
-                            fontSize = 12.sp,
-                            color = Muted
-                        )
-                    }
-                }
+                ProgressCard(
+                    title = material.title,
+                    detail = "Reading: $progress%  •  ${if (best != null) "Best quiz: $best/5" else "Quiz not taken yet"}",
+                    progress = progress / 100f
+                )
             }
             // Latest quiz attempts, newest first (keyed by index: two identical
             // scores for the same story must still have unique keys).
@@ -215,19 +222,40 @@ fun ProgressScreen(onOpenProfile: () -> Unit) {
 }
 
 @Composable
-private fun StatCard(value: String, label: String, modifier: Modifier) {
+private fun StatCard(
+    value: String,
+    label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector?,
+    modifier: Modifier
+) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
     ) {
         Column(
-            modifier = Modifier.padding(vertical = 14.dp),
+            modifier = Modifier.padding(vertical = 12.dp, horizontal = 4.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
-            Text(label, fontSize = 11.sp, color = Muted)
+            if (icon == null) {
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        progress = { (value.toIntOrNull() ?: 0).coerceIn(0, 100) / 100f },
+                        modifier = Modifier.size(40.dp),
+                        color = BluePrimary,
+                        trackColor = BlueLight,
+                        strokeWidth = 3.dp
+                    )
+                    Text("$value%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = InkDark)
+                }
+            } else {
+                Icon(icon, contentDescription = null, modifier = Modifier.size(19.dp), tint = BluePrimary)
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(value, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+            }
+            Text(label, fontSize = 10.sp, color = Muted, maxLines = 1)
         }
     }
 }

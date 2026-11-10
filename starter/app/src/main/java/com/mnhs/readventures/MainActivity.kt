@@ -5,6 +5,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -112,6 +113,7 @@ fun ReadVenturesApp(
     val showBottomNav = currentRoute in mainRoutes || (isTeacher && currentRoute == "teacher_dashboard")
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (showBottomNav) {
                 val navRoute = if (currentRoute == "teacher_dashboard") "home" else currentRoute

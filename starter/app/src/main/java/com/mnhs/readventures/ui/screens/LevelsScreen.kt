@@ -47,6 +47,7 @@ import com.mnhs.readventures.data.Level
 import com.mnhs.readventures.ui.components.SubHeader
 import com.mnhs.readventures.ui.theme.BlueLight
 import com.mnhs.readventures.ui.theme.BluePrimary
+import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.Green
 import com.mnhs.readventures.ui.theme.GreenLight
 import com.mnhs.readventures.ui.theme.InkDark
@@ -79,6 +80,9 @@ fun LevelsScreen(
             items(AppState.levels, key = { it.id }) { level ->
                 val isUnlocked = AppState.isLevelUnlocked(level.id)
                 val levelMaterials = AppState.materials.filter { it.levelId == level.id }
+                val completedMaterials = levelMaterials.count { it.id in AppState.finishedReading }
+                val completion = if (levelMaterials.isEmpty()) 0f
+                    else completedMaterials.toFloat() / levelMaterials.size
 
                 Card(
                     modifier = Modifier
@@ -92,6 +96,7 @@ fun LevelsScreen(
                     colors = CardDefaults.cardColors(
                         containerColor = if (isUnlocked) Color.White else Color(0xFFF1F5F9)
                     ),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder),
                     elevation = CardDefaults.cardElevation(defaultElevation = if (isUnlocked) 2.dp else 0.dp)
                 ) {
                     Column(modifier = Modifier.padding(18.dp)) {
@@ -148,6 +153,30 @@ fun LevelsScreen(
                         Spacer(modifier = Modifier.height(14.dp))
 
                         if (isUnlocked) {
+                            if (levelMaterials.isNotEmpty()) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        "$completedMaterials of ${levelMaterials.size} stories completed",
+                                        fontSize = 12.sp,
+                                        color = Muted,
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    Text(
+                                        "${(completion * 100).toInt()}%",
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = BluePrimary
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(6.dp))
+                                LinearProgressIndicator(
+                                    progress = { completion },
+                                    modifier = Modifier.fillMaxWidth().height(6.dp),
+                                    color = BluePrimary,
+                                    trackColor = BlueLight
+                                )
+                                Spacer(modifier = Modifier.height(14.dp))
+                            }
                             Text(
                                 "Stories in this level:",
                                 fontSize = 13.sp,
@@ -166,7 +195,8 @@ fun LevelsScreen(
                                         .padding(vertical = 4.dp)
                                         .clickable { onOpenReading(material.id) },
                                     shape = RoundedCornerShape(10.dp),
-                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC))
+                                    colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
                                 ) {
                                     Row(
                                         modifier = Modifier.padding(12.dp),

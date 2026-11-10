@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.foundation.verticalScroll
@@ -49,8 +50,11 @@ import com.mnhs.readventures.data.DictionaryWord
 import com.mnhs.readventures.data.ProgressStore
 import com.mnhs.readventures.data.ReadingMaterial
 import com.mnhs.readventures.ui.components.SubHeader
+import com.mnhs.readventures.ui.components.PrimaryButton
+import com.mnhs.readventures.ui.components.SecondaryButton
 import com.mnhs.readventures.ui.theme.BlueLight
 import com.mnhs.readventures.ui.theme.BluePrimary
+import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.Green
 import com.mnhs.readventures.ui.theme.InkDark
 import com.mnhs.readventures.ui.theme.Muted
@@ -98,29 +102,42 @@ fun ReadingScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
         ) {
-            Text(material.title, fontSize = 22.sp, fontWeight = FontWeight.Bold, color = InkDark)
+            Text(
+                material.title,
+                fontSize = 26.sp,
+                lineHeight = 32.sp,
+                fontWeight = FontWeight.Bold,
+                color = InkDark
+            )
             Text(
                 "${material.topic}  •  ${material.level}  •  ${material.category}",
                 fontSize = 13.sp,
                 color = Muted
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             LinearProgressIndicator(
                 progress = { slider / 100f },
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().height(6.dp),
                 color = BluePrimary,
                 trackColor = BlueLight
             )
-            Text("${slider.toInt()}% read", fontSize = 12.sp, color = Muted)
+            Text(
+                "${slider.toInt()}% read",
+                modifier = Modifier.padding(top = 5.dp),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
+                color = Muted
+            )
             Spacer(modifier = Modifier.height(16.dp))
 
             // Glossary hint banner
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
+                    .padding(bottom = 16.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(containerColor = BlueLight)
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = BorderStroke(1.dp, CardBorder)
             ) {
                 Row(
                     modifier = Modifier.padding(12.dp),
@@ -145,7 +162,8 @@ fun ReadingScreen(
             Card(
                 shape = RoundedCornerShape(16.dp),
                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                border = BorderStroke(1.dp, CardBorder)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
                     for (paragraph in material.body.split("\n")) {
@@ -184,9 +202,9 @@ fun ReadingScreen(
                         ClickableText(
                             text = annotatedText,
                             style = TextStyle(
-                                fontSize = 16.sp,
+                                fontSize = 17.sp,
                                 color = InkDark,
-                                lineHeight = 24.sp
+                                lineHeight = 29.sp
                             ),
                             onClick = { offset ->
                                 annotatedText.getStringAnnotations("DICT_WORD", offset, offset)
@@ -197,13 +215,13 @@ fun ReadingScreen(
                                     }
                             }
                         )
-                        Spacer(modifier = Modifier.height(14.dp))
+                        Spacer(modifier = Modifier.height(20.dp))
                     }
                 }
             }
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Where are you in the story?", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = InkDark)
+            Text("Where are you in the story?", fontSize = 15.sp, fontWeight = FontWeight.SemiBold, color = InkDark)
             Slider(
                 value = slider,
                 onValueChange = { slider = it },
@@ -223,29 +241,20 @@ fun ReadingScreen(
         }
 
         Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)) {
-            Button(
+            PrimaryButton(
+                text = "Save progress",
                 onClick = { persist(slider.toInt(), "Progress saved — you can continue later.") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(26.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-            ) {
-                Text("Save Progress", fontSize = 16.sp)
-            }
+                modifier = Modifier.fillMaxWidth()
+            )
             Spacer(modifier = Modifier.height(8.dp))
-            OutlinedButton(
+            SecondaryButton(
+                text = "Finish reading & start quiz",
                 onClick = {
                     persist(100, "Finished! Great reading.")
                     onStartQuiz(material.id)
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(26.dp)
-            ) {
-                Text("Mark as Finished & Start Quiz", color = BluePrimary, fontSize = 15.sp)
-            }
+                modifier = Modifier.fillMaxWidth()
+            )
         }
     }
 

@@ -43,8 +43,11 @@ import androidx.compose.ui.unit.sp
 import com.mnhs.readventures.data.AppState
 import com.mnhs.readventures.data.DictionaryWord
 import com.mnhs.readventures.ui.components.SubHeader
+import com.mnhs.readventures.ui.components.AppTextField
+import com.mnhs.readventures.ui.components.EmptyState
 import com.mnhs.readventures.ui.theme.BlueLight
 import com.mnhs.readventures.ui.theme.BluePrimary
+import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.InkDark
 import com.mnhs.readventures.ui.theme.Muted
 import com.mnhs.readventures.ui.theme.ScreenBg
@@ -76,16 +79,16 @@ fun DictionaryScreen(
     ) {
         SubHeader(title = "Dictionary & Glossary", onBack = onBack)
 
-        OutlinedTextField(
+        AppTextField(
             value = searchQuery,
             onValueChange = { searchQuery = it },
-            placeholder = { Text("Search words, definitions...") },
-            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = "Search") },
+            label = "Search the dictionary",
+            placeholder = "Words, definitions, and parts of speech",
+            leadingIcon = Icons.Filled.Search,
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 8.dp),
-            shape = RoundedCornerShape(22.dp)
         )
 
         Row(
@@ -105,82 +108,80 @@ fun DictionaryScreen(
         if (filteredWords.isEmpty()) {
             Box(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .weight(1f)
+                    .fillMaxWidth()
                     .padding(32.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(
-                    "No matching words found. Try a different search.",
-                    color = Muted,
-                    fontSize = 14.sp
-                )
+                EmptyState("No matching words", "Try another word or a shorter search term.")
             }
-        }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            items(filteredWords, key = { "${it.word}-${it.materialId}" }) { item ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { selectedWord = item },
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
+        } else {
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                items(filteredWords, key = { "${it.word}-${it.materialId}" }) { item ->
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { selectedWord = item },
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(42.dp)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(BlueLight),
-                            contentAlignment = Alignment.Center
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(
-                                Icons.Filled.MenuBook,
-                                contentDescription = null,
-                                tint = BluePrimary,
-                                modifier = Modifier.size(22.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(
-                                    item.word,
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = BluePrimary
+                            Box(
+                                modifier = Modifier
+                                    .size(42.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(BlueLight),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Filled.MenuBook,
+                                    contentDescription = null,
+                                    tint = BluePrimary,
+                                    modifier = Modifier.size(22.dp)
                                 )
-                                if (item.partOfSpeech.isNotBlank()) {
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        "(${item.partOfSpeech})",
-                                        fontSize = 12.sp,
-                                        fontStyle = FontStyle.Italic,
-                                        color = Muted
-                                    )
-                                }
                             }
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                item.definition,
-                                fontSize = 13.sp,
-                                color = InkDark,
-                                maxLines = 2
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                "${item.level}  •  Tap to view details",
-                                fontSize = 11.sp,
-                                color = Muted
-                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(
+                                        item.word,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = BluePrimary
+                                    )
+                                    if (item.partOfSpeech.isNotBlank()) {
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            "(${item.partOfSpeech})",
+                                            fontSize = 12.sp,
+                                            fontStyle = FontStyle.Italic,
+                                            color = Muted
+                                        )
+                                    }
+                                }
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    item.definition,
+                                    fontSize = 13.sp,
+                                    color = InkDark,
+                                    maxLines = 2
+                                )
+                                Spacer(modifier = Modifier.height(3.dp))
+                                Text(
+                                    "${item.level}  •  Tap to view details",
+                                    fontSize = 11.sp,
+                                    color = Muted
+                                )
+                            }
                         }
                     }
                 }

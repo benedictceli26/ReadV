@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Class
 import androidx.compose.material.icons.filled.Dashboard
@@ -29,11 +30,13 @@ import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Spellcheck
 import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -55,6 +58,7 @@ import com.mnhs.readventures.data.AppState
 import com.mnhs.readventures.ui.components.AppTopBar
 import com.mnhs.readventures.ui.theme.BlueLight
 import com.mnhs.readventures.ui.theme.BluePrimary
+import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.InkDark
 import com.mnhs.readventures.ui.theme.Muted
 import com.mnhs.readventures.ui.theme.Red
@@ -97,7 +101,8 @@ fun ProfileScreen(
                 .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
         ) {
             Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Box(
@@ -111,10 +116,20 @@ fun ProfileScreen(
                 }
                 Spacer(modifier = Modifier.width(12.dp))
                 Column {
-                    Text(user.name.ifBlank { "Juan Dela Cruz" }, fontSize = 17.sp, fontWeight = FontWeight.Bold, color = InkDark)
-                    Text(if (isTeacher) "Teacher  •  English Department" else "Grade 7 – Rizal (Student)", fontSize = 13.sp, color = BluePrimary, fontWeight = FontWeight.SemiBold)
-                    Text("Muntinlupa National High School", fontSize = 12.sp, color = Muted)
-                    Text(user.email.ifBlank { "juan.delacruz@mnhs.edu.ph" }, fontSize = 11.sp, color = Muted)
+                    Text(
+                        user.name.ifBlank { if (isTeacher) "Teacher profile" else "Student profile" },
+                        fontSize = 17.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = InkDark,
+                        maxLines = 1
+                    )
+                    Text(
+                        if (isTeacher) "Teacher account" else "Student account",
+                        fontSize = 13.sp,
+                        color = BluePrimary,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(user.email.ifBlank { "No email added" }, fontSize = 12.sp, color = Muted, maxLines = 1)
                 }
             }
         }
@@ -126,9 +141,9 @@ fun ProfileScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            StatBox("${AppState.readCount()}", "Read", Modifier.weight(1f))
-            StatBox("${AppState.quizzesTaken()}", "Quizzes", Modifier.weight(1f))
-            StatBox("${AppState.averageScorePercent()}%", "Avg Score", Modifier.weight(1f))
+            StatBox("${AppState.readCount()}", "Stories", Icons.AutoMirrored.Filled.MenuBook, Modifier.weight(1f))
+            StatBox("${AppState.quizzesTaken()}", "Quizzes", Icons.Filled.Quiz, Modifier.weight(1f))
+            StatBox("${AppState.averageScorePercent()}", "Average", null, Modifier.weight(1f))
         }
 
         Text(
@@ -143,7 +158,8 @@ fun ProfileScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
         ) {
             Column {
                 SettingsRow(androidx.compose.material.icons.Icons.Filled.Spellcheck, "Dictionary & Glossary", onClick = onOpenDictionary)
@@ -167,7 +183,8 @@ fun ProfileScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
         ) {
             Column {
                 SettingsRow(Icons.Filled.Edit, "Edit Profile", onClick = onEditProfile)
@@ -202,7 +219,8 @@ fun ProfileScreen(
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp),
             shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = Color.White)
+            colors = CardDefaults.cardColors(containerColor = Color.White),
+            border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
         ) {
             Column {
                 SettingsRow(Icons.Filled.Help, "Help & Support", onClick = { showHelp = true })
@@ -272,19 +290,40 @@ fun ProfileScreen(
 }
 
 @Composable
-private fun StatBox(value: String, label: String, modifier: Modifier) {
+private fun StatBox(
+    value: String,
+    label: String,
+    icon: ImageVector?,
+    modifier: Modifier
+) {
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
     ) {
         Column(
             modifier = Modifier.padding(vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Text(value, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
-            Text(label, fontSize = 11.sp, color = Muted)
+            if (icon == null) {
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        progress = { (value.toIntOrNull() ?: 0).coerceIn(0, 100) / 100f },
+                        modifier = Modifier.size(36.dp),
+                        color = BluePrimary,
+                        trackColor = BlueLight,
+                        strokeWidth = 3.dp
+                    )
+                    Text("$value%", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = InkDark)
+                }
+            } else {
+                Icon(icon, contentDescription = null, tint = BluePrimary, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.height(3.dp))
+                Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+            }
+            Text(label, fontSize = 10.sp, color = Muted, maxLines = 1)
         }
     }
 }
@@ -298,7 +337,12 @@ private fun SettingsRow(icon: ImageVector, label: String, onClick: () -> Unit) {
             .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, contentDescription = null, tint = InkDark)
+        Box(
+            Modifier.size(36.dp).clip(RoundedCornerShape(11.dp)).background(BlueLight),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(icon, contentDescription = null, tint = BluePrimary, modifier = Modifier.size(19.dp))
+        }
         Spacer(modifier = Modifier.width(12.dp))
         Text(label, fontSize = 14.sp, color = InkDark, modifier = Modifier.weight(1f))
         Icon(Icons.Filled.ChevronRight, contentDescription = null, tint = Muted)

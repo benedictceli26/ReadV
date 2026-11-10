@@ -18,6 +18,8 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -40,6 +42,7 @@ import com.mnhs.readventures.data.AuthRepository
 import com.mnhs.readventures.ui.components.SubHeader
 import com.mnhs.readventures.ui.theme.BlueLight
 import com.mnhs.readventures.ui.theme.BluePrimary
+import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.Green
 import com.mnhs.readventures.ui.theme.InkDark
 import com.mnhs.readventures.ui.theme.Muted
@@ -107,44 +110,54 @@ fun ChangePasswordScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
         ) {
-            if (success) {
-                Text("✓ Password changed", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Green)
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "Your password was updated successfully. Use the new password the next time you log in.",
-                    fontSize = 14.sp,
-                    color = InkDark
-                )
-            } else {
-                PasswordField("Current password", current, { current = it }, showCurrent, { showCurrent = !showCurrent })
-                Spacer(modifier = Modifier.height(12.dp))
-                PasswordField("New password", newPassword, { newPassword = it }, showNew, { showNew = !showNew })
-                Spacer(modifier = Modifier.height(8.dp))
-                if (newPassword.isNotEmpty()) {
-                    LinearProgressIndicator(
-                        progress = { strength / 4f },
-                        modifier = Modifier.fillMaxWidth(),
-                        color = if (strength >= 3) Green else if (strength == 2) Color(0xFFD97706) else Red,
-                        trackColor = BlueLight
-                    )
-                    Text("Strength: $strengthLabel", fontSize = 12.sp, color = Muted)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    for (rule in listOf("At least 8 characters" to (newPassword.length >= 8), "At least one letter" to newPassword.any { it.isLetter() }, "At least one number" to newPassword.any { it.isDigit() })) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                if (rule.second) Icons.Filled.Check else Icons.Filled.Close,
-                                contentDescription = null,
-                                tint = if (rule.second) Green else Muted
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 14.dp),
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(Modifier.padding(18.dp)) {
+                    if (success) {
+                        Text("Password changed", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Green)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            "Your password was updated successfully. Use the new password the next time you log in.",
+                            fontSize = 14.sp,
+                            color = InkDark
+                        )
+                    } else {
+                        PasswordField("Current password", current, { current = it }, showCurrent, { showCurrent = !showCurrent })
+                        Spacer(modifier = Modifier.height(12.dp))
+                        PasswordField("New password", newPassword, { newPassword = it }, showNew, { showNew = !showNew })
+                        Spacer(modifier = Modifier.height(8.dp))
+                        if (newPassword.isNotEmpty()) {
+                            LinearProgressIndicator(
+                                progress = { strength / 4f },
+                                modifier = Modifier.fillMaxWidth(),
+                                color = if (strength >= 3) Green else if (strength == 2) Color(0xFFD97706) else Red,
+                                trackColor = BlueLight
                             )
-                            Text(rule.first, fontSize = 13.sp, color = if (rule.second) Green else Muted)
+                            Text("Strength: $strengthLabel", fontSize = 12.sp, color = Muted)
+                            Spacer(modifier = Modifier.height(8.dp))
+                            for (rule in listOf("At least 8 characters" to (newPassword.length >= 8), "At least one letter" to newPassword.any { it.isLetter() }, "At least one number" to newPassword.any { it.isDigit() })) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        if (rule.second) Icons.Filled.Check else Icons.Filled.Close,
+                                        contentDescription = null,
+                                        tint = if (rule.second) Green else Muted
+                                    )
+                                    Text(rule.first, fontSize = 13.sp, color = if (rule.second) Green else Muted)
+                                }
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        PasswordField("Confirm new password", confirm, { confirm = it }, showConfirm, { showConfirm = !showConfirm })
+                        error?.let {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Text(it, fontSize = 13.sp, color = Red)
                         }
                     }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
-                PasswordField("Confirm new password", confirm, { confirm = it }, showConfirm, { showConfirm = !showConfirm })
-                error?.let {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(it, fontSize = 13.sp, color = Red)
                 }
             }
         }

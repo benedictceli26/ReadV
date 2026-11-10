@@ -10,8 +10,12 @@ val BlueLight = Color(0xFFDBEAFE)
 val BluePale = Color(0xFFEFF6FF)
 val InkDark = Color(0xFF0F172A)
 val Muted = Color(0xFF64748B)
-val ScreenBg = Color(0xFFF1F5F9)
+// A very light blue-grey keeps long reading sessions calm while preserving
+// a clear contrast between the canvas and elevated surfaces.
+val ScreenBg = Color(0xFFF3F6FB)
 val CardBorder = Color(0xFFE2E8F0)
+val SurfaceSoft = Color(0xFFF8FAFC)
+val InkSoft = Color(0xFF334155)
 val Green = Color(0xFF16A34A)
 val GreenLight = Color(0xFFDCFCE7)
 val Red = Color(0xFFDC2626)

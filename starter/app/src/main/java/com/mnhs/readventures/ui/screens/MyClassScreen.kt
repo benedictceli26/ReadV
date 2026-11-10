@@ -42,6 +42,7 @@ import com.mnhs.readventures.ui.components.SubHeader
 import com.mnhs.readventures.ui.theme.BlueDark
 import com.mnhs.readventures.ui.theme.BlueLight
 import com.mnhs.readventures.ui.theme.BluePrimary
+import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.Green
 import com.mnhs.readventures.ui.theme.InkDark
 import com.mnhs.readventures.ui.theme.Muted
@@ -124,7 +125,7 @@ fun MyClassScreen(
                         Card(
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = BluePrimary),
+                            colors = CardDefaults.cardColors(containerColor = InkDark),
                             elevation = CardDefaults.cardElevation(defaultElevation = 3.dp)
                         ) {
                             Column(modifier = Modifier.padding(18.dp)) {
@@ -194,7 +195,8 @@ fun MyClassScreen(
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 shape = RoundedCornerShape(12.dp),
-                                colors = CardDefaults.cardColors(containerColor = Color.White)
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
                             ) {
                                 Text(
                                     "No readings assigned yet for this class.",
@@ -216,7 +218,8 @@ fun MyClassScreen(
                                     .clickable { onOpenReading(assignment.materialId) },
                                 shape = RoundedCornerShape(14.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
                             ) {
                                 Column(modifier = Modifier.padding(16.dp)) {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -253,7 +256,7 @@ fun MyClassScreen(
                                     Spacer(modifier = Modifier.height(10.dp))
                                     LinearProgressIndicator(
                                         progress = { progress / 100f },
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier.fillMaxWidth().height(7.dp),
                                         color = BluePrimary,
                                         trackColor = BlueLight
                                     )

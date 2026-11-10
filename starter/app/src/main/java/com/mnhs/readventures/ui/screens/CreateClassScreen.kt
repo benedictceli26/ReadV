@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -27,7 +25,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mnhs.readventures.data.AppState
+import com.mnhs.readventures.ui.components.PrimaryButton
 import com.mnhs.readventures.ui.components.SubHeader
+import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.BluePrimary
 import com.mnhs.readventures.ui.theme.InkDark
 import com.mnhs.readventures.ui.theme.Muted
@@ -80,7 +80,8 @@ fun CreateClassScreen(
                 .padding(20.dp),
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(containerColor = Color.White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+            border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
         ) {
             Column(modifier = Modifier.padding(20.dp)) {
                 Text(
@@ -132,16 +133,11 @@ fun CreateClassScreen(
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                Button(
+                PrimaryButton(
+                    "Create class & generate code",
                     onClick = ::handleCreate,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(25.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-                ) {
-                    Text("Create Class & Generate Code", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                }
+                    modifier = Modifier.fillMaxWidth()
+                )
             }
         }
     }

@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -26,6 +27,7 @@ import com.mnhs.readventures.data.ReadingRepository
 import com.mnhs.readventures.data.SampleData
 import com.mnhs.readventures.ui.components.BottomNavItems
 import com.mnhs.readventures.ui.components.ReadVenturesBottomNav
+import com.mnhs.readventures.ui.components.TeacherBottomNavItems
 import com.mnhs.readventures.ui.screens.ChangePasswordScreen
 import com.mnhs.readventures.ui.screens.CreateClassScreen
 import com.mnhs.readventures.ui.screens.CreateMaterialQuizScreen
@@ -43,7 +45,9 @@ import com.mnhs.readventures.ui.screens.QuizResultScreen
 import com.mnhs.readventures.ui.screens.QuizScreen
 import com.mnhs.readventures.ui.screens.ReadingScreen
 import com.mnhs.readventures.ui.screens.TeacherDashboardScreen
+import com.mnhs.readventures.ui.screens.TeacherClassScreen
 import com.mnhs.readventures.ui.theme.ReadVenturesTheme
+import android.widget.Toast
 
 /**
  * Entry point — ReadVentures (student & teacher app).
@@ -62,8 +66,8 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         progressStore = ProgressStore(applicationContext)
-        authRepository = AuthRepository(progressStore)
-        readingRepository = ReadingRepository(progressStore)
+        authRepository = AuthRepository()
+        readingRepository = ReadingRepository()
         progressStore.loadIntoAppState()
 
         setContent {
@@ -85,45 +89,33 @@ fun ReadVenturesApp(
     progressStore: ProgressStore
 ) {
     val navController = rememberNavController()
+    val context = LocalContext.current
     val materials = AppState.materials
     var categoryFilter by remember { mutableStateOf<String?>(null) }
-
-    // Load sample data immediately, then try Firestore in the background.
-    LaunchedEffect(Unit) {
-        readingRepository.loadMaterials { loaded ->
-            for (m in loaded) {
-                if (AppState.materials.none { it.id == m.id }) {
-                    AppState.materials.add(m)
-                }
-            }
-        }
-        readingRepository.loadDictionaryWords { loaded ->
-            for (w in loaded) {
-                if (AppState.dictionaryWords.none { it.word.equals(w.word, ignoreCase = true) && it.materialId == w.materialId }) {
-                    AppState.dictionaryWords.add(w)
-                }
-            }
-        }
-    }
 
     val isTeacher = AppState.currentUser.value.role == "teacher"
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val mainRoutes = BottomNavItems.map { it.route }
-    val showBottomNav = currentRoute in mainRoutes || (isTeacher && currentRoute == "teacher_dashboard")
+    val bottomNavItems = if (isTeacher) TeacherBottomNavItems else BottomNavItems
+    val mainRoutes = bottomNavItems.map { it.route }
+    val showBottomNav = currentRoute in mainRoutes
+    val rootRoute = if (isTeacher) "teacher_dashboard" else "home"
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
             if (showBottomNav) {
-                val navRoute = if (currentRoute == "teacher_dashboard") "home" else currentRoute
-                ReadVenturesBottomNav(currentRoute = navRoute) { route ->
-                    navController.navigate(route) {
-                        popUpTo("home") { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+                ReadVenturesBottomNav(
+                    currentRoute = currentRoute,
+                    items = bottomNavItems,
+                    onNavigate = { route ->
+                        navController.navigate(route) {
+                            popUpTo(rootRoute) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
-                }
+                )
             }
         }
     ) { innerPadding ->
@@ -140,6 +132,30 @@ fun ReadVenturesApp(
         ) {
             composable("login") {
                 LoginScreen(authRepository = authRepository) {
+                    readingRepository.loadMaterials { result ->
+                        result.onSuccess { loaded ->
+                            AppState.contentLoadError.value = null
+                            for (material in loaded) {
+                                val index = AppState.materials.indexOfFirst { it.id == material.id }
+                                if (index >= 0) AppState.materials[index] = material
+                                else AppState.materials.add(material)
+                            }
+                        }.onFailure { AppState.contentLoadError.value = it.message }
+                    }
+                    readingRepository.loadDictionaryWords { loaded ->
+                        for (word in loaded) {
+                            if (AppState.dictionaryWords.none {
+                                    it.word.equals(word.word, ignoreCase = true) && it.materialId == word.materialId
+                                }
+                            ) {
+                                AppState.dictionaryWords.add(word)
+                            }
+                        }
+                    }
+                    readingRepository.loadScores { result ->
+                        result.onSuccess { AppState.replaceScores(it) }
+                            .onFailure { AppState.scoreHistoryError.value = it.message }
+                    }
                     val dest = if (AppState.currentUser.value.role == "teacher") "teacher_dashboard" else "home"
                     navController.navigate(dest) {
                         popUpTo("login") { inclusive = true }
@@ -153,6 +169,7 @@ fun ReadVenturesApp(
                         showBack = false,
                         onBack = {},
                         onProfileClick = { navController.navigate("profile") },
+                        readingRepository = readingRepository,
                         onCreateClass = { navController.navigate("create_class") },
                         onCreateMaterial = { navController.navigate("create_material") },
                         onEditMaterial = { id -> navController.navigate("create_material?materialId=$id") }
@@ -209,6 +226,7 @@ fun ReadVenturesApp(
                 var questions by remember(id) {
                     mutableStateOf(AppState.questions.filter { it.materialId == id }.ifEmpty { SampleData.questionsFor(id) })
                 }
+                val serverGraded = material.isTeacherMade || questions.any { it.correctIndex < 0 }
                 LaunchedEffect(id) {
                     readingRepository.loadQuestions(id) { loaded ->
                         if (loaded.isNotEmpty()) questions = loaded
@@ -217,20 +235,37 @@ fun ReadVenturesApp(
                 QuizScreen(
                     material = material,
                     questions = questions,
+                    serverGraded = serverGraded,
                     onBack = { navController.popBackStack() },
                     onFinished = { materialId, score, total ->
-                        val resultScore = com.mnhs.readventures.data.Score(
-                            id = "$materialId-${System.currentTimeMillis()}",
-                            userId = AppState.currentUser.value.uid,
-                            materialId = materialId,
-                            materialTitle = material.title,
-                            score = score,
-                            total = total,
-                            date = System.currentTimeMillis()
-                        )
-                        readingRepository.saveScore(resultScore)
                         navController.navigate("result/$materialId/$score/$total") {
                             popUpTo("quiz/$materialId") { inclusive = true }
+                        }
+                    },
+                    onServerFinished = { submission ->
+                        readingRepository.recordTrustedQuizScore(
+                            com.mnhs.readventures.data.Score(
+                                id = submission.scoreId,
+                                userId = AppState.currentUser.value.uid,
+                                materialId = material.id,
+                                materialTitle = material.title,
+                                score = submission.score,
+                                total = submission.total,
+                                date = System.currentTimeMillis()
+                            )
+                        )
+                        navController.navigate(
+                            "result/${material.id}/${submission.score}/${submission.total}" +
+                                "?percentage=${submission.percentage}" +
+                                "&passed=${if (submission.passed) 1 else 0}" +
+                                "&feedback=${android.net.Uri.encode(submission.feedback)}"
+                        ) {
+                            popUpTo("quiz/${material.id}") { inclusive = true }
+                        }
+                    },
+                    onSubmitAnswers = { answers, attemptId, onResult ->
+                        readingRepository.submitQuiz(id, answers, attemptId) { result ->
+                            onResult(result)
                         }
                     }
                 )
@@ -241,7 +276,10 @@ fun ReadVenturesApp(
                 arguments = listOf(
                     navArgument("materialId") { type = NavType.StringType },
                     navArgument("score") { type = NavType.IntType },
-                    navArgument("total") { type = NavType.IntType }
+                    navArgument("total") { type = NavType.IntType },
+                    navArgument("percentage") { type = NavType.IntType; defaultValue = -1 },
+                    navArgument("passed") { type = NavType.IntType; defaultValue = -1 },
+                    navArgument("feedback") { type = NavType.StringType; nullable = true; defaultValue = null }
                 )
             ) { entry ->
                 val id = entry.arguments?.getString("materialId") ?: materials.first().id
@@ -252,6 +290,9 @@ fun ReadVenturesApp(
                     material = material,
                     score = score,
                     total = total,
+                    percentage = entry.arguments?.getInt("percentage")?.takeIf { it >= 0 },
+                    passed = entry.arguments?.getInt("passed")?.takeIf { it >= 0 }?.let { it == 1 },
+                    serverFeedback = entry.arguments?.getString("feedback"),
                     onRetake = { navController.navigate("quiz/$id") },
                     onBackToLibrary = { navController.navigate("library") },
                     onHome = { navController.navigate("home") }
@@ -268,9 +309,16 @@ fun ReadVenturesApp(
                     onChangePassword = { navController.navigate("change_password") },
                     onOpenProgress = { navController.navigate("progress") },
                     onLogOut = {
-                        authRepository.signOut()
-                        navController.navigate("login") {
-                            popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                        authRepository.signOut().onSuccess {
+                            navController.navigate("login") {
+                                popUpTo(navController.graph.startDestinationId) { inclusive = true }
+                            }
+                        }.onFailure { error ->
+                            Toast.makeText(
+                                context,
+                                error.message ?: "Could not sign out of Firebase.",
+                                Toast.LENGTH_LONG
+                            ).show()
                         }
                     },
                     onOpenDictionary = { navController.navigate("dictionary") },
@@ -282,7 +330,7 @@ fun ReadVenturesApp(
 
             composable("edit_profile") {
                 EditProfileScreen(
-                    progressStore = progressStore,
+                    authRepository = authRepository,
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() }
                 )
@@ -320,10 +368,17 @@ fun ReadVenturesApp(
                 )
             }
 
+            // Dedicated teacher Class tab; it reads the existing AppState class,
+            // roster, and assignment collections without duplicating records.
+            composable("class") {
+                TeacherClassScreen(
+                    onManageAssignments = { navController.navigate("teacher_dashboard") }
+                )
+            }
+
             composable("join_class") {
                 JoinClassScreen(
-                    onBack = { navController.popBackStack() },
-                    onClassJoined = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() }
                 )
             }
 
@@ -333,6 +388,7 @@ fun ReadVenturesApp(
                     showBack = false,
                     onBack = {},
                     onProfileClick = { navController.navigate("profile") },
+                    readingRepository = readingRepository,
                     onCreateClass = { navController.navigate("create_class") },
                     onCreateMaterial = { navController.navigate("create_material") },
                     onEditMaterial = { id -> navController.navigate("create_material?materialId=$id") }
@@ -341,8 +397,7 @@ fun ReadVenturesApp(
 
             composable("create_class") {
                 CreateClassScreen(
-                    onBack = { navController.popBackStack() },
-                    onClassCreated = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() }
                 )
             }
 
@@ -359,6 +414,7 @@ fun ReadVenturesApp(
                 val editId = entry.arguments?.getString("materialId")
                 CreateMaterialQuizScreen(
                     editingMaterialId = editId,
+                    readingRepository = readingRepository,
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() }
                 )
@@ -367,6 +423,7 @@ fun ReadVenturesApp(
             composable("create_material") {
                 CreateMaterialQuizScreen(
                     editingMaterialId = null,
+                    readingRepository = readingRepository,
                     onBack = { navController.popBackStack() },
                     onSaved = { navController.popBackStack() }
                 )

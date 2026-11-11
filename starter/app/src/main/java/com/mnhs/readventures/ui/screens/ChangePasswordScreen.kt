@@ -52,8 +52,7 @@ import com.mnhs.readventures.ui.theme.ScreenBg
 /**
  * Change Password: validates the current password, new-password strength
  * (8+ chars, a letter, a number) and a matching confirmation, with
- * show/hide toggles and a strength meter. In Firebase mode the real
- * account password is changed; in sample mode the on-device password is.
+ * show/hide toggles and a strength meter. Changes use Firebase Authentication.
  */
 @Composable
 fun ChangePasswordScreen(

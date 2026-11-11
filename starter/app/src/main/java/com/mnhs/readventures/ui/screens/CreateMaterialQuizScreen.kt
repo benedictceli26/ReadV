@@ -1,5 +1,8 @@
 package com.mnhs.readventures.ui.screens
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -33,6 +36,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.RadioButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,12 +46,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mnhs.readventures.data.AppState
+import com.mnhs.readventures.data.CloudinaryImageUploadService
 import com.mnhs.readventures.data.Question
 import com.mnhs.readventures.data.ReadingMaterial
+import com.mnhs.readventures.data.ReadingRepository
 import com.mnhs.readventures.ui.components.SubHeader
 import com.mnhs.readventures.ui.theme.BlueLight
 import com.mnhs.readventures.ui.theme.BluePrimary
@@ -57,8 +64,13 @@ import com.mnhs.readventures.ui.theme.InkDark
 import com.mnhs.readventures.ui.theme.Muted
 import com.mnhs.readventures.ui.theme.Red
 import com.mnhs.readventures.ui.theme.ScreenBg
+import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
+import java.util.UUID
 
 class QuestionDraft(
+    var id: String? = null,
     var questionText: String = "",
     val choices: MutableList<String> = mutableListOf("", "", "", ""),
     var correctIndex: Int = 0
@@ -70,6 +82,7 @@ class QuestionDraft(
 @Composable
 fun CreateMaterialQuizScreen(
     editingMaterialId: String? = null,
+    readingRepository: ReadingRepository,
     onBack: () -> Unit,
     onSaved: () -> Unit
 ) {
@@ -81,28 +94,89 @@ fun CreateMaterialQuizScreen(
     var category by remember { mutableStateOf(existing?.category ?: "Fiction") }
     var level by remember { mutableStateOf(existing?.level ?: "Level 1 (Grade 7)") }
     var body by remember { mutableStateOf(existing?.body ?: "") }
+    var coverImageUrl by remember { mutableStateOf(existing?.coverImageUrl ?: "") }
+    var selectedCoverUri by remember { mutableStateOf<android.net.Uri?>(null) }
+    var uploadMessage by remember { mutableStateOf<String?>(null) }
+    var uploadingCover by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    var loadingExistingQuestions by remember {
+        mutableStateOf(existing != null)
+    }
+    var existingQuestionsLoaded by remember {
+        mutableStateOf(existing == null)
+    }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val coverPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            selectedCoverUri = uri
+            uploadingCover = true
+            uploadMessage = null
+            scope.launch {
+                when (val result = CloudinaryImageUploadService(context).upload(uri)) {
+                    is CloudinaryImageUploadService.Result.Success -> {
+                        coverImageUrl = result.secureUrl
+                        uploadMessage = "Cover uploaded successfully."
+                    }
+                    is CloudinaryImageUploadService.Result.Failure -> uploadMessage = result.message
+                }
+                uploadingCover = false
+            }
+        }
+    }
 
     val questionsList = remember {
         mutableStateListOf<QuestionDraft>().apply {
-            if (existing != null) {
-                val found = AppState.questions.filter { it.materialId == existing.id }
-                if (found.isNotEmpty()) {
-                    for (q in found) {
-                        val cList = q.choices.toMutableList()
-                        while (cList.size < 4) cList.add("")
-                        add(QuestionDraft(q.question, cList, q.correctIndex))
+            add(QuestionDraft())
+        }
+    }
+
+    LaunchedEffect(editingMaterialId) {
+        if (editingMaterialId != null) {
+            if (existing == null || !existing.isTeacherMade || existing.createdBy != teacher.uid) {
+                loadingExistingQuestions = false
+                existingQuestionsLoaded = true
+                errorMessage = "Only materials owned by your Firebase teacher account can be edited."
+                return@LaunchedEffect
+            }
+            loadingExistingQuestions = true
+            readingRepository.loadTeacherQuestions(editingMaterialId) { result ->
+                loadingExistingQuestions = false
+                result.onSuccess { loaded ->
+                    questionsList.clear()
+                    loaded.forEach { question ->
+                        val choices = question.choices.toMutableList()
+                        while (choices.size < 4) choices.add("")
+                        questionsList.add(
+                            QuestionDraft(
+                                id = question.id,
+                                questionText = question.question,
+                                choices = choices,
+                                correctIndex = question.correctIndex
+                            )
+                        )
                     }
-                } else {
-                    add(QuestionDraft())
+                    if (questionsList.isEmpty()) questionsList.add(QuestionDraft())
+                    existingQuestionsLoaded = true
+                }.onFailure {
+                    errorMessage = it.message ?: "Could not load this quiz for editing."
                 }
-            } else {
-                add(QuestionDraft())
             }
         }
     }
 
     fun handleSave() {
+        if (saving) return
+        if (!existingQuestionsLoaded || loadingExistingQuestions) {
+            errorMessage = "Wait for the existing quiz to finish loading."
+            return
+        }
+        if (uploadingCover) { errorMessage = "Wait for the cover upload to finish."; return }
+        if (teacher.uid.isBlank()) {
+            errorMessage = "Sign in with a provisioned Firebase teacher account before saving materials."
+            return
+        }
         if (title.isBlank()) {
             errorMessage = "Please enter a story title."
             return
@@ -119,6 +193,10 @@ fun CreateMaterialQuizScreen(
             }
             if (q.choices.any { it.isBlank() }) {
                 errorMessage = "Please fill in all 4 choices for Question ${i + 1}."
+                return
+            }
+            if (q.correctIndex !in 0..3) {
+                errorMessage = "Select the correct answer for Question ${i + 1}."
                 return
             }
         }
@@ -138,25 +216,38 @@ fun CreateMaterialQuizScreen(
             category = category.trim(),
             kind = if (category == "Science" || category == "Non-Fiction") "Informational" else "Stories",
             body = body.trim(),
-            createdBy = teacher.uid.ifBlank { "teacher-santos" },
+            createdBy = teacher.uid,
             isTeacherMade = true,
-            levelId = levelId
+            levelId = levelId,
+            coverImageUrl = coverImageUrl,
+            illustrationImageUrl = existing?.illustrationImageUrl ?: ""
         )
 
         val newQuestions = questionsList.mapIndexed { idx, q ->
             Question(
-                id = "$materialId-q${idx + 1}",
+                id = q.id ?: "$materialId-q-${UUID.randomUUID()}",
                 materialId = materialId,
                 question = q.questionText.trim(),
                 choices = q.choices.map { it.trim() },
                 correctIndex = q.correctIndex,
-                createdBy = teacher.uid.ifBlank { "teacher-santos" },
+                questionOrder = idx,
+                createdBy = teacher.uid,
                 isTeacherMade = true
             )
         }
 
-        AppState.addOrUpdateMaterial(newMaterial, newQuestions)
-        onSaved()
+        saving = true
+        readingRepository.saveTeacherMaterial(newMaterial, newQuestions) { result ->
+            saving = false
+            result.onSuccess {
+                val existingIndex = AppState.materials.indexOfFirst { it.id == newMaterial.id }
+                if (existingIndex >= 0) AppState.materials[existingIndex] = newMaterial
+                else AppState.materials.add(0, newMaterial)
+                AppState.questions.removeAll { it.materialId == newMaterial.id }
+                AppState.questions.addAll(newQuestions.map { it.copy(correctIndex = -1) })
+                onSaved()
+            }.onFailure { errorMessage = it.message ?: "Could not save material to Firestore." }
+        }
     }
 
     Column(
@@ -190,6 +281,27 @@ fun CreateMaterialQuizScreen(
                         fontWeight = FontWeight.Bold,
                         color = InkDark
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    Text("Book cover (optional)", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = InkDark)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (selectedCoverUri != null || coverImageUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = selectedCoverUri ?: coverImageUrl,
+                            contentDescription = "Selected book cover",
+                            modifier = Modifier.fillMaxWidth().height(160.dp).clip(RoundedCornerShape(12.dp))
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    OutlinedButton(
+                        onClick = { coverPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                        enabled = !uploadingCover,
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp)
+                    ) { Text(if (uploadingCover) "Uploading cover…" else "Select book cover") }
+                    uploadMessage?.let {
+                        Text(it, fontSize = 12.sp, color = if (coverImageUrl.isNotBlank()) Green else Red, modifier = Modifier.padding(top = 6.dp))
+                    }
                     Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedTextField(
@@ -268,6 +380,15 @@ fun CreateMaterialQuizScreen(
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
+
+            if (loadingExistingQuestions) {
+                Text(
+                    "Loading the saved quiz and answer keys…",
+                    fontSize = 13.sp,
+                    color = Muted,
+                    modifier = Modifier.padding(vertical = 12.dp)
+                )
+            }
 
             questionsList.forEachIndexed { qIndex, qDraft ->
                 Card(
@@ -360,6 +481,7 @@ fun CreateMaterialQuizScreen(
 
             Button(
                 onClick = ::handleSave,
+                enabled = !saving && existingQuestionsLoaded && !loadingExistingQuestions,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp),
@@ -367,7 +489,7 @@ fun CreateMaterialQuizScreen(
                 colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
             ) {
                 Text(
-                    if (existing != null) "Update Story & Quiz" else "Save Story & Quiz",
+                    if (saving) "Saving…" else if (existing != null) "Update Story & Quiz" else "Save Story & Quiz",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )

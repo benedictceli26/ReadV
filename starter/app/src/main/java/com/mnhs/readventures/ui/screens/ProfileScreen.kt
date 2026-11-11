@@ -304,26 +304,28 @@ private fun StatBox(
         border = androidx.compose.foundation.BorderStroke(1.dp, CardBorder)
     ) {
         Column(
-            modifier = Modifier.padding(vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().height(104.dp).padding(horizontal = 4.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             if (icon == null) {
                 Box(contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
                         progress = { (value.toIntOrNull() ?: 0).coerceIn(0, 100) / 100f },
-                        modifier = Modifier.size(36.dp),
+                        modifier = Modifier.size(42.dp),
                         color = BluePrimary,
                         trackColor = BlueLight,
                         strokeWidth = 3.dp
                     )
-                    Text("$value%", fontSize = 9.sp, fontWeight = FontWeight.Bold, color = InkDark)
+                    Text("$value%", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = InkDark, maxLines = 1)
                 }
             } else {
                 Icon(icon, contentDescription = null, tint = BluePrimary, modifier = Modifier.size(18.dp))
-                Spacer(modifier = Modifier.height(3.dp))
-                Text(value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(value, fontSize = 18.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
             }
-            Text(label, fontSize = 10.sp, color = Muted, maxLines = 1)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(label, fontSize = 11.sp, lineHeight = 13.sp, color = Muted, maxLines = 1, softWrap = false)
         }
     }
 }

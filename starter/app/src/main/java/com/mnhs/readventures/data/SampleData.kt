@@ -161,42 +161,4 @@ object SampleData {
         DictionaryWord("hardworking", "putting continuous effort, dedication, and energy into tasks", "The woodcutter went home rich, but he remained honest and hardworking.", "adjective", "honest-woodcutter", "Level 3 (Advanced)")
     )
 
-    val demoClass = SchoolClass(
-        classId = "class-mnhs-7a1",
-        classCode = "READ-7A1",
-        className = "Grade 7 – Rizal",
-        teacherId = "teacher-santos",
-        teacherName = "Ms. Santos",
-        subject = "English 7",
-        schoolYear = "2026-2027"
-    )
-
-    val demoMembers: List<ClassMember> = listOf(
-        ClassMember(
-            classId = "class-mnhs-7a1",
-            studentId = "sample-juan",
-            studentName = "Juan Dela Cruz"
-        )
-    )
-
-    val demoAssignments: List<ClassAssignment> = listOf(
-        ClassAssignment(
-            id = "assign-1",
-            classId = "class-mnhs-7a1",
-            materialId = "power-of-kindness",
-            title = "The Power of Kindness",
-            dueDate = "Tomorrow, 5:00 PM",
-            level = "Level 1 (Grade 7)",
-            assignedBy = "Ms. Santos"
-        ),
-        ClassAssignment(
-            id = "assign-2",
-            classId = "class-mnhs-7a1",
-            materialId = "volcanoes",
-            title = "Volcanoes",
-            dueDate = "Friday, 5:00 PM",
-            level = "Level 2 (Intermediate)",
-            assignedBy = "Ms. Santos"
-        )
-    )
 }

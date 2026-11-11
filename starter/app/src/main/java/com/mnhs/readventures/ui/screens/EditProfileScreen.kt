@@ -25,7 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mnhs.readventures.data.AppState
-import com.mnhs.readventures.data.ProgressStore
+import com.mnhs.readventures.data.AuthRepository
 import com.mnhs.readventures.ui.components.SubHeader
 import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.Muted
@@ -34,18 +34,19 @@ import com.mnhs.readventures.ui.theme.Green
 import com.mnhs.readventures.ui.theme.InkDark
 import com.mnhs.readventures.ui.theme.ScreenBg
 
-/** Edit Profile: name, grade/section and email. Saved on-device. */
+/** Edit Profile: profile fields are written to the authenticated user's Firestore document. */
 @Composable
 fun EditProfileScreen(
-    progressStore: ProgressStore,
+    authRepository: AuthRepository,
     onBack: () -> Unit,
     onSaved: () -> Unit
 ) {
     val user = AppState.currentUser.value
     var name by remember { mutableStateOf(user.name) }
-    var grade by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf(user.email) }
+    var grade by remember { mutableStateOf(user.grade) }
     var message by remember { mutableStateOf<String?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var success by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -82,29 +83,37 @@ fun EditProfileScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-                    OutlinedTextField(
-                        value = email, onValueChange = { email = it },
-                        label = { Text("Email") }, singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                    Text("Email: ${user.email}", fontSize = 13.sp, color = Muted)
                     message?.let {
                         Spacer(modifier = Modifier.height(12.dp))
-                        Text(it, fontSize = 13.sp, color = Green)
+                        Text(it, fontSize = 13.sp, color = if (success) Green else com.mnhs.readventures.ui.theme.Red)
                     }
                 }
             }
         }
         Button(
             onClick = {
-                if (name.isBlank() || email.isBlank()) {
-                    message = "Name and email cannot be empty."
+                if (name.isBlank()) {
+                    message = "Name cannot be empty."
+                    success = false
                     return@Button
                 }
-                AppState.currentUser.value = user.copy(name = name.trim(), email = email.trim())
-                progressStore.saveDisplayName(name.trim())
-                message = "Profile updated."
-                onSaved()
+                busy = true
+                message = null
+                authRepository.updateProfile(name.trim(), grade.trim()) { result ->
+                    busy = false
+                    result.onSuccess {
+                        AppState.currentUser.value = user.copy(name = name.trim(), grade = grade.trim())
+                        success = true
+                        message = "Profile updated in Firestore."
+                        onSaved()
+                    }.onFailure { error ->
+                        success = false
+                        message = error.message ?: "Could not update your Firestore profile."
+                    }
+                }
             },
+            enabled = !busy,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 20.dp, vertical = 12.dp)
@@ -112,7 +121,7 @@ fun EditProfileScreen(
             shape = RoundedCornerShape(26.dp),
             colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
         ) {
-            Text("Save Changes", fontSize = 16.sp)
+            Text(if (busy) "Saving..." else "Save Changes", fontSize = 16.sp)
         }
     }
 }

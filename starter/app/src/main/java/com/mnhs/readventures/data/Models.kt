@@ -7,7 +7,8 @@ data class AppUser(
     val uid: String = "",
     val name: String = "",
     val email: String = "",
-    val role: String = "student" // "student" or "teacher"
+    val role: String = "",
+    val grade: String = ""
 )
 
 data class ReadingMaterial(
@@ -20,7 +21,9 @@ data class ReadingMaterial(
     val body: String = "",
     val createdBy: String = "",
     val isTeacherMade: Boolean = false,
-    val levelId: String = "level-1" // "level-1", "level-2", "level-3"
+    val levelId: String = "level-1", // "level-1", "level-2", "level-3"
+    val coverImageUrl: String = "",
+    val illustrationImageUrl: String = ""
 )
 
 data class Question(
@@ -28,7 +31,8 @@ data class Question(
     val materialId: String = "",
     val question: String = "",
     val choices: List<String> = emptyList(), // multiple-choice, 4 options
-    val correctIndex: Int = 0,
+    val correctIndex: Int = -1, // Bundled practice only; Firebase prompts never include answer keys.
+    val questionOrder: Int = 0,
     val createdBy: String = "",
     val isTeacherMade: Boolean = false
 )
@@ -61,7 +65,7 @@ data class Level(
 
 data class SchoolClass(
     val classId: String = "",
-    val classCode: String = "", // e.g. READ-7A1
+    val classCode: String = "",
     val className: String = "",
     val teacherId: String = "",
     val teacherName: String = "",

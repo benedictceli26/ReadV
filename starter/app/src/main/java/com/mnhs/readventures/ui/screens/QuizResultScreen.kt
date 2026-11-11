@@ -45,12 +45,15 @@ fun QuizResultScreen(
     material: ReadingMaterial,
     score: Int,
     total: Int,
+    percentage: Int? = null,
+    passed: Boolean? = null,
+    serverFeedback: String? = null,
     onRetake: () -> Unit,
     onBackToLibrary: () -> Unit,
     onHome: () -> Unit
 ) {
-    val percent = if (total == 0) 0 else (score * 100) / total
-    val message = when {
+    val percent = percentage ?: if (total == 0) 0 else (score * 100) / total
+    val message = serverFeedback ?: when {
         percent == 100 -> "Perfect score! 🎉"
         percent >= 80 -> "Great job! You understood the story well."
         percent >= 60 -> "Good work! Review the story and try again to improve."
@@ -81,6 +84,16 @@ fun QuizResultScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text("QUIZ COMPLETE", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = BluePrimary, letterSpacing = .8.sp)
+                if (passed != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        if (passed) "PASSED" else "KEEP PRACTICING",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = BluePrimary,
+                        letterSpacing = .5.sp
+                    )
+                }
                 Spacer(modifier = Modifier.height(16.dp))
                 Box(contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(
@@ -115,7 +128,11 @@ fun QuizResultScreen(
         SecondaryButton("Back to Home", onHome, Modifier.fillMaxWidth())
         Spacer(modifier = Modifier.height(12.dp))
         Text(
-            "Your score is saved on this device and shown in My Progress.",
+            if (serverFeedback != null) {
+                "Your server-verified score is saved and shown in My Progress."
+            } else {
+                "Practice result only. This score was not saved to Firebase or My Progress."
+            },
             fontSize = 12.sp,
             color = Muted,
             textAlign = TextAlign.Center

@@ -1,10 +1,7 @@
 package com.mnhs.readventures.ui.screens
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,7 +21,6 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -67,9 +63,9 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
     var name by remember { mutableStateOf("") }
-    var role by remember { mutableStateOf("student") } // "student" or "teacher"
     var isRegister by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
+    var status by remember { mutableStateOf<String?>(null) }
     var busy by remember { mutableStateOf(false) }
 
     fun submit() {
@@ -87,17 +83,36 @@ fun LoginScreen(
         }
         busy = true
         error = null
+        status = null
         val callback: (Result<com.mnhs.readventures.data.AppUser>) -> Unit = { result ->
             busy = false
             result.onSuccess { user ->
-                AppState.resetForLogin(user, !authRepository.isFirebaseAvailable)
+                AppState.resetForLogin(user)
                 onLoggedIn()
             }.onFailure { e ->
                 error = e.message ?: "Login failed. Please try again."
             }
         }
-        if (isRegister) authRepository.register(name.trim(), email.trim(), password, role, callback)
+        if (isRegister) authRepository.register(name.trim(), email.trim(), password, callback)
         else authRepository.signIn(email.trim(), password, callback)
+    }
+
+    fun sendPasswordReset() {
+        if (!email.contains("@") || email.isBlank()) {
+            error = "Enter your email address first."
+            return
+        }
+        busy = true
+        error = null
+        status = null
+        authRepository.sendPasswordResetEmail(email.trim()) { result ->
+            busy = false
+            result.onSuccess {
+                status = "Firebase sent a password reset email. Check your inbox."
+            }.onFailure { failure ->
+                error = failure.message ?: "Could not send a password reset email."
+            }
+        }
     }
 
     Column(
@@ -156,54 +171,11 @@ fun LoginScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (isRegister) {
-                    // Role Selector: Student vs Teacher
                     Text(
-                        "I am joining as a:",
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = InkDark
+                        "New accounts are created as students. Teacher access must be provisioned by your school administrator.",
+                        fontSize = 11.sp,
+                        color = Muted
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(ScreenBg)
-                            .padding(4.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (role == "student") BluePrimary else Color.Transparent)
-                                .clickable { role = "student" }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "Student",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (role == "student") Color.White else Muted
-                            )
-                        }
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(10.dp))
-                                .background(if (role == "teacher") BluePrimary else Color.Transparent)
-                                .clickable { role = "teacher" }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                "Teacher",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (role == "teacher") Color.White else Muted
-                            )
-                        }
-                    }
                     Spacer(modifier = Modifier.height(12.dp))
 
                     OutlinedTextField(
@@ -263,6 +235,10 @@ fun LoginScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(it, fontSize = 13.sp, color = com.mnhs.readventures.ui.theme.Red)
                 }
+                status?.let {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(it, fontSize = 13.sp, color = com.mnhs.readventures.ui.theme.Green)
+                }
 
                 Spacer(modifier = Modifier.height(20.dp))
                 PrimaryButton(
@@ -273,7 +249,7 @@ fun LoginScreen(
                 )
 
                 TextButton(
-                    onClick = { isRegister = !isRegister; error = null },
+                    onClick = { isRegister = !isRegister; error = null; status = null },
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                 ) {
                     Text(
@@ -283,42 +259,22 @@ fun LoginScreen(
                     )
                 }
 
-                OutlinedButton(
-                    onClick = {
-                        authRepository.signInAsDemo { user ->
-                            AppState.resetForLogin(user, true)
-                            onLoggedIn()
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp),
-                    shape = RoundedCornerShape(23.dp)
-                ) {
-                    Text("Continue as demo student (Juan Dela Cruz)", color = BluePrimary, fontSize = 13.sp)
+                if (!isRegister) {
+                    TextButton(
+                        onClick = ::sendPasswordReset,
+                        enabled = !busy,
+                        modifier = Modifier.align(Alignment.CenterHorizontally)
+                    ) {
+                        Text("Forgot password?", color = BluePrimary)
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedButton(
-                    onClick = {
-                        authRepository.signInAsDemoTeacher { user ->
-                            AppState.resetForLogin(user, true)
-                            onLoggedIn()
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(46.dp),
-                    shape = RoundedCornerShape(23.dp)
-                ) {
-                    Text("Continue as demo teacher (Ms. Santos)", color = BluePrimary, fontSize = 13.sp)
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    if (authRepository.isFirebaseAvailable) "Signed in with Firebase Auth."
-                    else "Sample mode: Firebase is not configured yet, so login is stored on this device only.",
+                    if (authRepository.isFirebaseAuthAvailable) {
+                        "Firebase Authentication and a provisioned Firestore user profile are required."
+                    } else {
+                        "Firebase Authentication is unavailable. Configure this app with a valid Firebase project to continue."
+                    },
                     fontSize = 11.sp,
                     color = Muted,
                     textAlign = TextAlign.Center,

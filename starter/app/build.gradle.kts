@@ -1,14 +1,19 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
-    // NOTE: google-services plugin is intentionally NOT applied yet.
-    // It fails the build ("File google-services.json is missing") when
-    // google-services.json is absent, so the app would not build in
-    // sample mode. Add this line back ONLY after you have downloaded
-    // google-services.json into starter/app/ (see README, Firebase setup):
-    // id("com.google.gms.google-services")
+    // Firebase Authentication and Firestore require the project's Google Services configuration.
+    id("com.google.gms.google-services")
 }
+
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { stream -> load(stream) }
+}
+val cloudinaryCloudName = localProperties.getProperty("CLOUDINARY_CLOUD_NAME", "")
+val cloudinaryUploadPreset = localProperties.getProperty("CLOUDINARY_UPLOAD_PRESET", "")
 
 android {
     namespace = "com.mnhs.readventures"
@@ -45,6 +50,11 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+    defaultConfig {
+        buildConfigField("String", "CLOUDINARY_CLOUD_NAME", "\"$cloudinaryCloudName\"")
+        buildConfigField("String", "CLOUDINARY_UPLOAD_PRESET", "\"$cloudinaryUploadPreset\"")
     }
     packaging {
         resources {
@@ -69,6 +79,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation("io.coil-kt:coil-compose:2.7.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     // Navigation Compose
     implementation("androidx.navigation:navigation-compose:2.7.7")
@@ -77,6 +89,7 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.2.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
+    implementation("com.google.firebase:firebase-functions-ktx")
 
     // Testing
     testImplementation("junit:junit:4.13.2")

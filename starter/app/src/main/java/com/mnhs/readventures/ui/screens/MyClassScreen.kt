@@ -93,14 +93,14 @@ fun MyClassScreen(
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "You haven't joined a class yet",
+                    "Class data is unavailable",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = InkDark
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Text(
-                    "Enter your teacher's 6-character code to see assigned readings and due dates.",
+                    "Class enrollment and assignment data are not connected to Firestore yet. No class information is being saved locally.",
                     fontSize = 13.sp,
                     color = Muted,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
@@ -111,7 +111,7 @@ fun MyClassScreen(
                     shape = RoundedCornerShape(20.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
                 ) {
-                    Text("Join a Class with Code")
+                    Text("Check class availability")
                 }
             }
         } else {

@@ -71,6 +71,13 @@ fun ProgressScreen(onOpenProfile: () -> Unit) {
             StatCard("$average", "Avg score", null, Modifier.weight(1f))
         }
 
+        Text(
+            "Reading completion is cached on this device. Quiz scores are loaded from Firebase.",
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp),
+            fontSize = 12.sp,
+            color = Muted
+        )
+
         // FEATURE 2: Current Level & Unlock Status
         val currLevel = AppState.currentLevel()
         val nextLevelId = when (currLevel.id) {
@@ -164,10 +171,19 @@ fun ProgressScreen(onOpenProfile: () -> Unit) {
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp)
         )
 
+        AppState.scoreHistoryError.value?.let { message ->
+            Text(
+                message,
+                fontSize = 13.sp,
+                color = com.mnhs.readventures.ui.theme.Red,
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+            )
+        }
+
         if (AppState.scores.isEmpty()) {
             EmptyState(
                 title = "Your quiz history will appear here",
-                detail = "Finish a story and take its quiz to start building your record.",
+                detail = "Server-verified Firebase quiz results appear here after they load.",
                 modifier = Modifier.padding(horizontal = 20.dp)
             )
         }

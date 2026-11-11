@@ -7,14 +7,14 @@ import androidx.compose.runtime.mutableStateOf
 /**
  * In-memory app state, shared across screens.
  *
- * Progress is persisted to SharedPreferences by ProgressStore; this object
- * is the single source of truth while the app is running so every screen
- * shows the same numbers without re-reading storage.
+ * Reading progress is cached by ProgressStore; Firebase provides account
+ * profiles and quiz scores. This object holds the reactive UI state.
  */
 object AppState {
     var currentUser = mutableStateOf(AppUser())
     var isLoggedIn = mutableStateOf(false)
-    var isSampleMode = mutableStateOf(true)
+    var scoreHistoryError = mutableStateOf<String?>(null)
+    var contentLoadError = mutableStateOf<String?>(null)
 
     /** Solo Mode vs Class Mode switch on Home screen. */
     var isClassMode = mutableStateOf(false)
@@ -36,22 +36,12 @@ object AppState {
         addAll(SampleData.levels)
     }
 
-    val classes = mutableStateListOf<SchoolClass>().apply {
-        add(SampleData.demoClass)
-    }
-
-    val classMembers = mutableStateListOf<ClassMember>().apply {
-        addAll(SampleData.demoMembers)
-    }
-
-    val classAssignments = mutableStateListOf<ClassAssignment>().apply {
-        addAll(SampleData.demoAssignments)
-    }
+    val classes = mutableStateListOf<SchoolClass>()
+    val classMembers = mutableStateListOf<ClassMember>()
+    val classAssignments = mutableStateListOf<ClassAssignment>()
 
     /** Codes of classes the currently logged-in student has joined. */
-    val enrolledClassCodes = mutableStateListOf<String>().apply {
-        add("READ-7A1") // Default enrolled in demo class for Juan Dela Cruz
-    }
+    val enrolledClassCodes = mutableStateListOf<String>()
 
     /** materialId -> reading progress 0..100 (save-and-continue). */
     val readingProgress = mutableStateMapOf<String, Int>()
@@ -67,10 +57,13 @@ object AppState {
 
     var notificationsEnabled = mutableStateOf(true)
 
-    fun resetForLogin(user: AppUser, sampleMode: Boolean) {
+    fun resetForLogin(user: AppUser) {
         currentUser.value = user
         isLoggedIn.value = true
-        isSampleMode.value = sampleMode
+        scores.clear()
+        bestScores.clear()
+        scoreHistoryError.value = null
+        contentLoadError.value = null
         if (user.role == "teacher") {
             isClassMode.value = false
         }
@@ -80,6 +73,10 @@ object AppState {
         currentUser.value = AppUser()
         isLoggedIn.value = false
         isClassMode.value = false
+        scores.clear()
+        bestScores.clear()
+        scoreHistoryError.value = null
+        contentLoadError.value = null
     }
 
     fun recordReadingProgress(materialId: String, percent: Int) {
@@ -159,63 +156,16 @@ object AppState {
         }
     }
 
-    // --- FEATURE 3: Class Code + Enrolment ---
-
-    fun joinClass(code: String, studentId: String, studentName: String): Result<SchoolClass> {
-        val trimmed = code.trim().uppercase()
-        val found = classes.firstOrNull { it.classCode.uppercase() == trimmed }
-            ?: return Result.failure(IllegalArgumentException("Invalid class code: $trimmed. Please check with your teacher."))
-
-        if (!enrolledClassCodes.contains(found.classCode)) {
-            enrolledClassCodes.add(found.classCode)
+    fun replaceScores(userScores: List<Score>) {
+        val mergedScores = (userScores + scores).distinctBy { it.id }
+        scores.clear()
+        bestScores.clear()
+        val orderedScores = mergedScores.sortedByDescending { it.date }
+        scores.addAll(orderedScores)
+        orderedScores.forEach { score ->
+            bestScores[score.materialId] = maxOf(bestScores[score.materialId] ?: 0, score.score)
         }
-        if (classMembers.none { it.classId == found.classId && it.studentId == studentId }) {
-            classMembers.add(ClassMember(found.classId, studentId, studentName))
-        }
-        return Result.success(found)
-    }
-
-    fun createClass(name: String, subject: String, schoolYear: String, teacherId: String, teacherName: String): SchoolClass {
-        val codeSuffix = ('A'..'Z').random().toString() + (10..99).random().toString()
-        val generatedCode = "READ-7$codeSuffix"
-        val newClass = SchoolClass(
-            classId = "class-${System.currentTimeMillis()}",
-            classCode = generatedCode,
-            className = name.trim(),
-            teacherId = teacherId,
-            teacherName = teacherName.ifBlank { "Teacher" },
-            subject = subject.trim(),
-            schoolYear = schoolYear.trim()
-        )
-        classes.add(0, newClass)
-        return newClass
-    }
-
-    fun assignReading(classId: String, materialId: String, title: String, dueDate: String, level: String, assignedBy: String): ClassAssignment {
-        val assignment = ClassAssignment(
-            id = "assign-${System.currentTimeMillis()}",
-            classId = classId,
-            materialId = materialId,
-            title = title,
-            dueDate = dueDate.ifBlank { "Next week" },
-            level = level,
-            assignedBy = assignedBy
-        )
-        classAssignments.add(0, assignment)
-        return assignment
-    }
-
-    // --- FEATURE 4: Teacher Content Management ---
-
-    fun addOrUpdateMaterial(material: ReadingMaterial, materialQuestions: List<Question>) {
-        val existingIndex = materials.indexOfFirst { it.id == material.id }
-        if (existingIndex >= 0) {
-            materials[existingIndex] = material
-        } else {
-            materials.add(0, material)
-        }
-        questions.removeAll { it.materialId == material.id }
-        questions.addAll(materialQuestions)
+        scoreHistoryError.value = null
     }
 
     fun deleteMaterial(materialId: String) {

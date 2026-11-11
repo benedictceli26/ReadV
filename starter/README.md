@@ -5,9 +5,10 @@ A smart mobile application for improving reading and comprehension skills,
 for Muntinlupa National High School.
 
 **Stack:** Kotlin + Android Studio, Jetpack Compose (Kotlin 2.0.20, AGP 8.5.2, Gradle 8.7),
-Firebase (Auth + Firestore), Material 3 Blue Theme (`#2563EB`).
-Runs in **sample mode** (offline / on-device SharedPreferences via `ProgressStore`) when
-Firebase is not yet configured.
+Firebase (Auth + Firestore + Cloud Functions), Material 3 Blue Theme (`#2563EB`).
+Bundled reading stories, questions, dictionary entries, and reading progress remain available
+locally. Authentication, user profiles, teacher-created materials, quiz scores, and password
+operations require the configured Firebase backend; there is no local account mode.
 
 ---
 
@@ -24,34 +25,62 @@ Firebase is not yet configured.
   - **Level 1 (Beginner):** Open by default. Stories: *The Power of Kindness*, *The Kind Farmer*.
   - **Level 2 (Intermediate):** Locked by default. Stories: *Volcanoes*, *Caring for Our Environment*.
   - **Level 3 (Advanced):** Locked by default. Story: *The Honest Woodcutter*.
-- **Unlock Rule:** Finish all reading materials in a level (100% read) **AND** pass their quizzes with **>= 80%** (at least 4 out of 5 correct) to unlock the next level.
+- **Unlock Rule:** Finish all reading materials in a level (100% read) **AND** pass server-verified Firebase quizzes with **>= 80%** (at least 4 out of 5 correct) to unlock the next level. Bundled offline practice results are not persisted or used to unlock levels.
 - **Gating UI:** Locked levels and stories are greyed out with lock icons. Tapping a locked story or level shows an alert with exact requirements to unlock ("Finish Level X first to unlock").
 - **My Progress:** Displays current level status and what is needed to unlock the next level.
 
-### 3. Class Code + Solo Mode vs Class Mode
+### 3. Class Navigation
 - **Dual Roles:** Student (`role = "student"`) and Teacher (`role = "teacher"`).
-- **Home Mode Switch:** Toggle between **Solo Mode** (personal reading journey) and **Class Mode** (enrolled class view with teacher assignments).
-- **Demo Class:** **Grade 7 – Rizal**, Class Code: **`READ-7A1`**, Teacher: **Ms. Santos** (English 7, SY 2026-2027).
-- **Assigned Readings:** Includes *The Power of Kindness* (Due: Tomorrow, 5:00 PM) and *Volcanoes* (Due: Friday, 5:00 PM).
-- **Join Class:** Students can enter any 6-character code (e.g. `READ-7A1`). Wrong code displays an error; correct code enrolls the student.
-- **Teacher Dashboard:** Teachers can view their classes, copy class codes with one tap, view the student roster and scores, assign library readings with custom due dates, and create new classes.
+- Student and teacher navigation remains available. Class creation, enrollment, rosters, and assignment persistence are not connected to Firestore; those screens report that limitation and do not claim to save data.
 
 ### 4. Teacher Upload / Create Own Quiz + Reading
 - **Create Reading & Quiz in One Flow:** Teachers can write or paste a new reading material (title, category, level, topic, passage body) and add up to 5 multiple-choice questions with 4 options (A–D) and a designated correct answer.
 - **Manage Materials:** Teachers can edit or delete their created materials and quizzes directly from the Teacher Dashboard.
-- **Instant Student Availability:** Once saved, teacher-created materials appear in the Library and can be assigned to classes. Students take them with the same auto-check, instant feedback, and scoring system as standard materials.
+- **Secure Student Grading:** Firebase-backed quizzes submit selected choices to the `submitQuiz` callable and show a result without revealing correct answers. Bundled practice quizzes can still be graded locally, but those practice results are not saved to Firebase or score history.
+
+## Secure Firebase Quiz Grading
+
+The original Firebase workflow loaded `correctIndex` from each public `questions` document, checked each answer in `QuizScreen`, and wrote the score from Android. That exposed answer keys and allowed clients to forge Firestore scores.
+
+The updated Firebase workflow stores prompt-only documents in `questions/{questionId}` and the answer indexes in `questionAnswerKeys/{questionId}`. Teacher material, question, and answer-key writes are batched together. Firebase-authenticated students load only questions marked `answerKeySeparated: true`; they choose answers without per-question correctness feedback and call the authenticated `submitQuiz` Cloud Function. The function validates the complete answer set, grades it with the Admin SDK, and atomically saves an idempotent attempt and trusted score. Android displays local sample-quiz practice results without adding them to Firebase score history; only Cloud Function-confirmed scores appear in My Progress.
+
+### Emulator checks
+
+From `starter/`, with Node.js 22 and JDK 17 installed:
+
+```powershell
+npm run test:rules
+npm run test:functions
+.\gradlew.bat :app:assembleDebug
+```
+
+### Existing Firestore data migration and deployment
+
+Do not assume legacy answer keys are protected until migration has completed. Back up the production database first. Deploy the restrictive rules so legacy questions are hidden from students, then use an Admin SDK identity with access to the project. The migration defaults to dry-run and never changes production data unless explicitly invoked:
+
+```powershell
+firebase deploy --only firestore:rules --project readventuresplmun
+$env:GCLOUD_PROJECT = 'readventuresplmun'
+node functions/scripts/migrate-answer-keys.js --dry-run
+node functions/scripts/migrate-answer-keys.js --write-keys
+node functions/scripts/migrate-answer-keys.js --dry-run
+node functions/scripts/migrate-answer-keys.js --remove-legacy
+npm --prefix functions run build
+firebase deploy --only functions:submitQuiz --project readventuresplmun
+```
+
+`--write-keys` copies recognized legacy answer fields into `questionAnswerKeys` and leaves the public question documents untouched. Verify the reported counts and protected key documents before running `--remove-legacy`; that phase checks every question has a matching key before deleting legacy answer fields and marking prompts as separated. Malformed or ambiguous fields stop the migration for manual review. Deploying rules before migration temporarily hides old quizzes from students; new quizzes become available after the migration and callable deployment. No emulator data, real Firebase data, or functions are deployed by the test/build commands.
 
 ---
 
-## Demo Accounts & Class Code
+## Firebase Account Setup
 
-| Account Type | Name | Email | Password | Role |
-|--------------|------|-------|----------|------|
-| **Demo Student** | Juan Dela Cruz | `juan.delacruz@mnhs.edu.ph` | `password123` | Student |
-| **Demo Teacher** | Ms. Santos | `teacher.santos@mnhs.edu.ph` | `password123` | Teacher |
-
-- **Demo Class Code:** `READ-7A1` (Grade 7 – Rizal, English 7)
-- One-tap buttons for both demo accounts are available on the Login screen.
+- Add the Firebase project's `google-services.json` to `app/` locally (it is ignored by Git).
+- Enable Email/Password in Firebase Authentication and configure a Firestore database.
+- Deploy `firestore.rules` before allowing new registrations. Registration creates only a `student` profile at `users/{authUid}`.
+- Provision teacher roles through a trusted administrator process; the app has no role selector and clients cannot change their role.
+- Deploy the `submitQuiz` Cloud Function and migrate existing answer keys before using Firebase-backed quizzes.
+- Real-account flows require a configured project and network connection; bundled sample reading material is not a demo account.
 
 ---
 
@@ -68,7 +97,7 @@ Firebase is not yet configured.
 ## Step-by-Step Testing Guide
 
 ### 1. Test Dictionary / Glossary & In-Reading Tap-to-Define
-1. Open the app and log in as demo student (**Juan Dela Cruz**).
+1. Register a Firebase student account or sign in with an existing provisioned account.
 2. On the **Home** screen, under *Quick Actions & Learning Tools*, tap **Dictionary**.
 3. Type `"magma"` or `"ripple"` into the search bar. Tap the word to see its definition, part of speech, sample sentence, and source story.
 4. Go back to Home and open the story **"The Power of Kindness"**.
@@ -90,32 +119,18 @@ Firebase is not yet configured.
 6. Now read *The Power of Kindness* and *The Kind Farmer*, mark each as finished, and score at least 4/5 on their quizzes.
 7. Return to the Library: **Level 2** stories (*Volcanoes*, *Caring for Our Environment*) are now unlocked!
 
-### 3. Test Class Mode & Join Class
-1. On the **Home** screen, tap the **Class Mode** tab at the top.
-2. If already enrolled in the demo class, you will see **Grade 7 – Rizal** (`READ-7A1`), teacher **Ms. Santos**, and the 2 assigned readings with due dates and progress bars.
-3. To test joining with a code: tap **Join Another Class** (or log in with a new student account).
-4. Enter an invalid code like `WRONG1` and tap **Join Class** → shows error: `"Invalid class code: WRONG1. Please check with your teacher."`
-5. Enter `READ-7A1` and tap **Join Class** → successfully enrolls into Grade 7 – Rizal.
+### 3. Class Management Availability
+Class screens remain in student and teacher navigation, but class creation, joining, roster data, and assignments are not connected to Firestore. The app displays an unavailable message and does not create local success-shaped records.
 
 ### 4. Test Teacher Dashboard & Quiz / Reading Creation
-1. Log out from Profile and tap **Continue as demo teacher (Ms. Santos)** on the Login screen.
-2. Notice the blue **Teacher Mode Active** banner on Home. Tap **Dashboard →** (or tap Profile → Teacher Dashboard).
-3. In the Teacher Dashboard:
-   - View your classes (`Grade 7 – Rizal`, code `READ-7A1`).
-   - Tap the code or copy icon to copy it to the clipboard.
-   - View the student roster (Juan Dela Cruz) with reading counts and average quiz scores.
-   - Tap **"+ Assign Reading to Class"** to assign any library material with a due date.
-4. Tap **"Upload Story"**:
-   - Enter Title: `The Brave Carabao`
-   - Category: `Fiction`, Level: `Level 1 (Grade 7)`, Topic: `Courage`
-   - Body: `Once upon a time in Muntinlupa, a brave carabao helped farmers protect the harvest...`
-   - Question 1: `What did the carabao protect?`
-     - Choices: `The river`, `The harvest`, `The mountain`, `The village store`
-     - Select choice B as correct answer.
-   - Tap **"Save Story & Quiz"**.
-5. Log back in as student Juan Dela Cruz:
-   - Go to **Library**: *The Brave Carabao* appears in the library.
-   - Open it, read it, and take the teacher-created quiz — it automatically checks the answer, provides instant feedback, and records the score!
+1. Sign in with a Firebase account whose `users/{uid}.role` was provisioned as exactly `teacher` by a trusted administrator.
+2. Tap **"Create reading"** on the Teacher Dashboard.
+3. Enter a reading and quiz, then save. The app reports success only after the Firestore batch commits.
+4. Edit or delete only materials owned by the signed-in teacher. Cover images continue to use Cloudinary.
+5. To test a student flow, sign in with a Firebase student account:
+   - Go to **Library**: the published material appears after it loads from Firestore.
+   - Open it, read it, answer all questions, and submit. The app displays the server-generated result and records the trusted score without returning answer keys.
+6. Class creation, roster, and assignment actions remain unavailable until their Firestore backend and rules are implemented.
 
 ---
 
@@ -133,31 +148,34 @@ starter/
         data/
           Models.kt              — AppUser, ReadingMaterial, Question, Score, DictionaryWord, Level, SchoolClass, ClassMember, ClassAssignment
           FirebaseCollections.kt — collection names (users, readingMaterials, questions, scores, dictionary_words, classes, etc.)
-          SampleData.kt          — 5 stories, 25 questions, 20 dictionary words, 3 levels, demo class & assignments
-          AppState.kt            — shared state, unlock checks, class enrollment, teacher content management
-          ProgressStore.kt       — SharedPreferences on-device persistence
-          AuthRepository.kt      — Firebase Auth + sample-mode fallback (student & teacher)
-          ReadingRepository.kt   — Firestore + sample-mode fallback
+          SampleData.kt          — 5 static stories, 25 questions, 20 dictionary words, 3 levels
+          AppState.kt            — shared UI state and reading-level unlock checks
+          ProgressStore.kt       — SharedPreferences reading-progress cache
+          AuthRepository.kt      — Firebase Authentication and trusted Firestore profiles
+          ReadingRepository.kt   — Firestore content, score, and secure quiz operations
         ui/theme/
           Color.kt / Theme.kt    — ReadVentures blue theme (#2563EB)
         ui/components/
           AppChrome.kt           — LogoMark, AppTopBar, SubHeader, BottomNav
         ui/screens/
-          LoginScreen.kt         — student & teacher registration/login + demo accounts
-          HomeScreen.kt          — Solo/Class mode switch, categories, assignments, quick actions
+          LoginScreen.kt         — Firebase student registration/login, password reset
+          HomeScreen.kt          — reading dashboard, categories, class availability, quick actions
           LibraryScreen.kt       — search, filters, level grouping, lock states
           ReadingScreen.kt       — story text with vocabulary highlighting & tap-to-define
           DictionaryScreen.kt    — searchable dictionary & glossary with story links
           LevelsScreen.kt        — 3 reading levels, unlock rules & progress
-          MyClassScreen.kt       — student class view with assigned readings & due dates
-          JoinClassScreen.kt     — join class via 6-character code
-          TeacherDashboardScreen.kt — teacher class management, code copy, student roster, assigning readings
-          CreateClassScreen.kt   — create class & generate unique code
+          MyClassScreen.kt       — student class navigation and backend availability
+          JoinClassScreen.kt     — honest unavailable state until class storage is implemented
+          TeacherDashboardScreen.kt — teacher material management and class availability
+          CreateClassScreen.kt   — honest unavailable state until class storage is implemented
           CreateMaterialQuizScreen.kt — teacher upload reading passage & 5-question quiz
-          QuizScreen.kt          — quiz questions with instant feedback
+          QuizScreen.kt          — local demo grading and server-submitted Firebase quizzes
           QuizResultScreen.kt    — score summary & retake
           ProgressScreen.kt      — reading stats, scores, current level & unlock requirement
           ProfileScreen.kt       — account details, learning navigation, logout
           EditProfileScreen.kt   — edit name and details
           ChangePasswordScreen.kt— change password with strength meter
+  functions/
+    src/index.ts                    — authenticated submitQuiz callable
+    scripts/migrate-answer-keys.js  — dry-run-first Admin SDK migration
 ```

@@ -1,0 +1,15 @@
+{
+  "private": true,
+  "scripts": {
+    "test": "mocha \"test/firestore.rules.test.js\" --timeout 30000",
+    "test:rules": "firebase emulators:exec --project demo-readventures-rules --only firestore \"npm test\"",
+    "test:callable": "mocha \"test/submitQuiz.test.js\" --timeout 20000",
+    "test:functions": "npm --prefix functions run build && firebase emulators:exec --project demo-readventures-rules --only firestore,functions,auth \"npm run test:callable\""
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "^6.0.0",
+    "firebase": "^13.2.0",
+    "firebase-tools": "^13.35.1",
+    "mocha": "^11.8.0"
+  }
+}

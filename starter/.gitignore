@@ -5,8 +5,12 @@ local.properties
 .idea/
 build/
 app/build/
-# Firebase — google-services.json is per-developer; do NOT commit a real one
-# (the app runs in sample mode without it, see README.md).
+# Firebase — configure a project-specific file locally; do NOT commit it.
 app/google-services.json
+# Firebase Emulator Suite / Node test dependencies
+node_modules/
+.firebase/
+firestore-debug.log
+functions/lib/
 # OS
 .DS_Store

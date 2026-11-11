@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -17,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Class
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Lock
@@ -55,6 +57,7 @@ import com.mnhs.readventures.ui.theme.Muted
 import com.mnhs.readventures.ui.theme.CardBorder
 import com.mnhs.readventures.ui.theme.ScreenBg
 import com.mnhs.readventures.ui.theme.Green
+import coil.compose.SubcomposeAsyncImage
 
 /**
  * Shared app chrome, matching the approved Home / Profile design:
@@ -286,11 +289,21 @@ fun ReadingMaterialCard(
                     .background(if (isUnlocked) BlueLight else CardBorder),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = if (isUnlocked) Icons.Filled.MenuBook else Icons.Filled.Lock,
-                    contentDescription = null,
-                    tint = if (isUnlocked) BluePrimary else Muted
-                )
+                if (isUnlocked && material.coverImageUrl.isNotBlank()) {
+                    SubcomposeAsyncImage(
+                        model = material.coverImageUrl,
+                        contentDescription = "Cover for ${material.title}",
+                        modifier = Modifier.fillMaxSize(),
+                        loading = { Icon(Icons.Filled.MenuBook, contentDescription = null, tint = BluePrimary) },
+                        error = { Icon(Icons.Filled.MenuBook, contentDescription = null, tint = BluePrimary) }
+                    )
+                } else {
+                    Icon(
+                        imageVector = if (isUnlocked) Icons.Filled.MenuBook else Icons.Filled.Lock,
+                        contentDescription = null,
+                        tint = if (isUnlocked) BluePrimary else Muted
+                    )
+                }
             }
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
@@ -355,10 +368,22 @@ val BottomNavItems = listOf(
     BottomNavItem("profile", "Profile", Icons.Filled.Person)
 )
 
+/** Teacher tabs intentionally omit student-only quiz results. */
+val TeacherBottomNavItems = listOf(
+    BottomNavItem("teacher_dashboard", "Home", Icons.Filled.Home),
+    BottomNavItem("library", "Library", Icons.Filled.Book),
+    BottomNavItem("class", "Class", Icons.Filled.Class),
+    BottomNavItem("profile", "Profile", Icons.Filled.Person)
+)
+
 @Composable
-fun ReadVenturesBottomNav(currentRoute: String?, onNavigate: (String) -> Unit) {
+fun ReadVenturesBottomNav(
+    currentRoute: String?,
+    onNavigate: (String) -> Unit,
+    items: List<BottomNavItem> = BottomNavItems
+) {
     NavigationBar(containerColor = Color.White) {
-        for (item in BottomNavItems) {
+        for (item in items) {
             val selected = currentRoute == item.route
             NavigationBarItem(
                 selected = selected,
@@ -390,7 +415,7 @@ fun ReadVenturesBottomNav(currentRoute: String?, onNavigate: (String) -> Unit) {
     }
 }
 
-/** Small helper: first name of the signed-in student, for "Hello, Juan!". */
+/** Small helper for the first name of the signed-in student. */
 fun greetingName(): String {
     val full = AppState.currentUser.value.name.ifBlank { "Student" }
     return full.split(" ").firstOrNull()?.ifBlank { "Student" } ?: "Student"

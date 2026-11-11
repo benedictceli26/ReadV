@@ -83,6 +83,14 @@ fun HomeScreen(
         Modifier.fillMaxSize().background(Color(0xFFF3F6FB)).verticalScroll(rememberScrollState())
     ) {
         AppTopBar(onProfileClick = onOpenProfile)
+        AppState.contentLoadError.value?.let { message ->
+            Text(
+                "Some Firestore reading materials could not load; bundled stories remain available. $message",
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 8.dp),
+                fontSize = 12.sp,
+                color = Orange
+            )
+        }
         HomeModeSelector(
             isClassMode = AppState.isClassMode.value,
             onSolo = { AppState.isClassMode.value = false },
@@ -424,11 +432,15 @@ private fun ClassDashboard(onOpenReading: (String) -> Unit, onOpenMyClass: () ->
                 Column(Modifier.padding(20.dp)) {
                     Icon(Icons.Filled.Class, contentDescription = null, tint = BluePrimary)
                     Spacer(Modifier.height(12.dp))
-                    Text("Join your classroom", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = InkDark)
+                    Text("Classroom unavailable", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = InkDark)
                     Spacer(Modifier.height(4.dp))
-                    Text("Use your teacher's class code to see assignments and due dates.", fontSize = 13.sp, color = Muted)
+                    Text(
+                        "Class joining and assignments are not connected to Firestore yet. No class code or enrollment will be saved.",
+                        fontSize = 13.sp,
+                        color = Muted
+                    )
                     Spacer(Modifier.height(16.dp))
-                    PrimaryButton("Join with class code", onJoinClass, Modifier.fillMaxWidth())
+                    PrimaryButton("View class availability", onJoinClass, Modifier.fillMaxWidth())
                 }
             }
         } else {

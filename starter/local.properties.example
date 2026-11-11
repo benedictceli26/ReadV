@@ -1,0 +1,4 @@
+# Copy these keys to local.properties. Never add a Cloudinary API secret to Android.
+# Unsigned presets are public: restrict formats, size, folder, and transformations in Cloudinary.
+CLOUDINARY_CLOUD_NAME=rwm2xkjm
+CLOUDINARY_UPLOAD_PRESET=readventures_images

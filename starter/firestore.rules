@@ -1,0 +1,164 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isTeacher() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "teacher";
+    }
+
+    function materialPath(materialId) {
+      return /databases/$(database)/documents/readingMaterials/$(materialId);
+    }
+
+    function questionPath(questionId) {
+      return /databases/$(database)/documents/questions/$(questionId);
+    }
+
+    function ownsExistingMaterial(materialId) {
+      return exists(materialPath(materialId))
+        && get(materialPath(materialId)).data.createdBy == request.auth.uid
+        && get(materialPath(materialId)).data.isTeacherMade == true;
+    }
+
+    function ownsMaterialAfterWrite(materialId) {
+      return existsAfter(materialPath(materialId))
+        && getAfter(materialPath(materialId)).data.createdBy == request.auth.uid
+        && getAfter(materialPath(materialId)).data.isTeacherMade == true;
+    }
+
+    function hasNoAnswerFields(data) {
+      return !data.keys().hasAny(["correctIndex", "correctAnswer", "answerKey", "answerKeys"]);
+    }
+
+    function validQuestion(data) {
+      return data.keys().hasAll(["materialId", "question", "choices", "questionOrder", "createdBy", "isTeacherMade", "answerKeySeparated"])
+        && data.keys().hasOnly(["materialId", "question", "choices", "questionOrder", "createdBy", "isTeacherMade", "answerKeySeparated"])
+        && data.materialId is string
+        && data.question is string
+        && data.question.size() > 0
+        && data.choices is list
+        && data.choices.size() == 4
+        && data.questionOrder is int
+        && data.questionOrder >= 0
+        && data.createdBy is string
+        && data.isTeacherMade == true
+        && data.answerKeySeparated == true
+        && hasNoAnswerFields(data);
+    }
+
+    function validOwnedQuestionAfterWrite(questionId, materialId) {
+      return existsAfter(questionPath(questionId))
+        && getAfter(questionPath(questionId)).data.materialId == materialId
+        && getAfter(questionPath(questionId)).data.createdBy == request.auth.uid
+        && validQuestion(getAfter(questionPath(questionId)).data);
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.keys().hasOnly(["name", "email", "role"])
+        && request.resource.data.keys().hasAll(["name", "email", "role"])
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == "student";
+      allow update: if signedIn()
+        && request.auth.uid == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["name", "grade"])
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.email == resource.data.email
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0
+        && (!("grade" in request.resource.data) || request.resource.data.grade is string);
+      allow delete: if false;
+    }
+
+    match /readingMaterials/{materialId} {
+      allow read: if signedIn();
+
+      allow create: if isTeacher()
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.isTeacherMade == true;
+
+      allow update: if isTeacher()
+        && ownsExistingMaterial(materialId)
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.isTeacherMade == true;
+
+      allow delete: if isTeacher() && ownsExistingMaterial(materialId);
+    }
+
+    match /questions/{questionId} {
+      // Old documents with answer data are withheld from students until migrated.
+      allow read: if signedIn()
+        && (resource.data.answerKeySeparated == true
+          || (isTeacher() && resource.data.createdBy == request.auth.uid));
+
+      allow create: if isTeacher()
+        && validQuestion(request.resource.data)
+        && request.resource.data.createdBy == request.auth.uid
+        && ownsMaterialAfterWrite(request.resource.data.materialId);
+
+      allow update: if isTeacher()
+        && validQuestion(request.resource.data)
+        && resource.data.createdBy == request.auth.uid
+        && request.resource.data.createdBy == resource.data.createdBy
+        && request.resource.data.materialId == resource.data.materialId
+        && ownsExistingMaterial(resource.data.materialId);
+
+      allow delete: if isTeacher()
+        && resource.data.createdBy == request.auth.uid
+        && ownsExistingMaterial(resource.data.materialId);
+    }
+
+    function validAnswerKey(questionId, data) {
+      return data.keys().hasAll(["materialId", "correctIndex", "createdBy"])
+        && data.keys().hasOnly(["materialId", "correctIndex", "createdBy"])
+        && data.materialId is string
+        && data.correctIndex is int
+        && data.createdBy == request.auth.uid
+        && ownsMaterialAfterWrite(data.materialId)
+        && validOwnedQuestionAfterWrite(questionId, data.materialId)
+        && data.correctIndex >= 0
+        && data.correctIndex < getAfter(questionPath(questionId)).data.choices.size();
+    }
+
+    match /questionAnswerKeys/{questionId} {
+      allow read: if isTeacher()
+        && resource.data.createdBy == request.auth.uid
+        && ownsExistingMaterial(resource.data.materialId);
+
+      allow create: if isTeacher() && validAnswerKey(questionId, request.resource.data);
+
+      allow update: if isTeacher()
+        && resource.data.createdBy == request.auth.uid
+        && ownsExistingMaterial(resource.data.materialId)
+        && validAnswerKey(questionId, request.resource.data);
+
+      allow delete: if isTeacher()
+        && resource.data.createdBy == request.auth.uid
+        && ownsExistingMaterial(resource.data.materialId);
+    }
+
+    match /scores/{scoreId} {
+      allow read: if signedIn() && resource.data.userId == request.auth.uid;
+      // Only trusted Admin SDK operations may write quiz scores.
+      allow create, update, delete: if false;
+    }
+
+    match /dictionary_words/{wordId} {
+      allow read: if signedIn();
+      allow write: if false;
+    }
+
+    match /classes/{id} { allow read, write: if false; }
+    match /class_members/{id} { allow read, write: if false; }
+    match /class_assignments/{id} { allow read, write: if false; }
+  }
+}
